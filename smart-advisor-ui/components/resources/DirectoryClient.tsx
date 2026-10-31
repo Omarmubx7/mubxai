@@ -5,7 +5,6 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Search, Upload, BookOpen, Loader2, ArrowLeft, ChevronDown } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
-import Fuse from "fuse.js";
 import { useToast } from "@/components/ui/Toast";
 import ResourceFilters from "./ResourceFilters";
 import ResourceCard from "./ResourceCard";
@@ -27,6 +26,10 @@ interface DirectoryClientProps {
 }
 
 const RECENT_KEY = "mubx-resource-recent-searches";
+
+function normalizeSearchValue(value: string): string {
+    return value.toLowerCase().replace(/[^a-z0-9\s]/g, " ").replace(/\s+/g, " ").trim();
+}
 
 export default function DirectoryClient({
     majorGroups,
@@ -133,7 +136,7 @@ export default function DirectoryClient({
         fetchResources();
     }, [fetchResources]);
 
-    // Build enriched resources with course names for Fuse.js
+    // Build enriched resources with course names and major labels.
     const enrichedResources = useMemo(() => {
         return resources.map((r) => ({
             ...r,
@@ -142,65 +145,72 @@ export default function DirectoryClient({
         }));
     }, [resources, courseNameMap, courseToMajorLabels]);
 
-    // Fuse.js instance — broadened keys for YouTube-style "find it however you type it".
-    const fuse = useMemo(
-        () =>
-            new Fuse(enrichedResources, {
-                keys: [
-                    { name: "title", weight: 0.4 },
-                    { name: "courseName", weight: 0.25 },
-                    { name: "course_code", weight: 0.15 },
-                    { name: "description", weight: 0.1 },
-                    { name: "uploaded_by", weight: 0.05 },
-                    { name: "semester", weight: 0.03 },
-                    { name: "type", weight: 0.02 },
-                ],
-                threshold: 0.4,
-                includeScore: true,
-                ignoreLocation: true,
-                minMatchCharLength: 2,
-            }),
+    const findMatchingCourseCodes = useCallback(
+        (query: string) => {
+            const normalizedQuery = normalizeSearchValue(query);
+            if (!normalizedQuery) return [];
+
+            return allCourses
+                .filter((c) => {
+                    const normalizedName = normalizeSearchValue(c.name);
+                    const normalizedCode = normalizeSearchValue(c.code);
+
+                    return (
+                        normalizedName.includes(normalizedQuery) ||
+                        normalizedCode.includes(normalizedQuery) ||
+                        normalizedQuery.includes(normalizedName)
+                    );
+                })
+                .map((c) => c.code);
+        },
+        [allCourses]
+    );
+
+    /**
+     * Strict text search where every typed token must appear in at least one stable field.
+     * This avoids broad fuzzy matches that pull in unrelated courses.
+     */
+    const strictTextSearch = useCallback(
+        (query: string) => {
+            const tokens = normalizeSearchValue(query).split(/\s+/).filter(Boolean);
+            if (tokens.length === 0) return enrichedResources;
+
+            return enrichedResources.filter((resource) => {
+                const haystack = normalizeSearchValue(
+                    [resource.title, resource.courseName, resource.course_code, resource.description]
+                        .filter(Boolean)
+                        .join(" ")
+                );
+                return tokens.every((token) => haystack.includes(token));
+            });
+        },
         [enrichedResources]
     );
 
-    /** Fuzzy search where every typed word must match somewhere (AND semantics). */
-    const smartSearch = useCallback(
-        (query: string) => {
-            const tokens = query.toLowerCase().trim().split(/\s+/).filter(Boolean);
-            if (tokens.length === 0) return enrichedResources;
-
-            if (tokens.length === 1) {
-                return fuse.search(tokens[0]).map((r) => r.item);
-            }
-
-            const perToken = tokens.map((t) => {
-                const map = new Map<number, number>();
-                fuse.search(t).forEach((r) => map.set(r.item.id, r.score ?? 0));
-                return map;
-            });
-
-            const [first, ...rest] = perToken;
-            const sharedIds = [...first.keys()].filter((id) => rest.every((m) => m.has(id)));
-            const byId = new Map(enrichedResources.map((r) => [r.id, r]));
-            const scoreById = new Map(
-                sharedIds.map((id) => [id, perToken.reduce((sum, m) => sum + (m.get(id) ?? 0), 0)])
-            );
-
-            return sharedIds
-                .sort((a, b) => (scoreById.get(a) ?? 0) - (scoreById.get(b) ?? 0))
-                .map((id) => byId.get(id))
-                .filter((r): r is (typeof enrichedResources)[number] => Boolean(r));
-        },
-        [fuse, enrichedResources]
-    );
-
     const filteredResources = useMemo(() => {
-        let results = debouncedQuery.trim() ? smartSearch(debouncedQuery) : enrichedResources;
+        let results = enrichedResources;
+
+        if (selectedCourse) {
+            results = results.filter((r) => r.course_code === selectedCourse);
+        }
+
+        const query = debouncedQuery.trim();
+        if (query) {
+            const matchedCourseCodes = findMatchingCourseCodes(query);
+
+            // If the query points to one or more course tags, only show resources from those courses.
+            if (matchedCourseCodes.length > 0) {
+                results = results.filter((r) => matchedCourseCodes.includes(r.course_code));
+            } else {
+                results = strictTextSearch(query);
+            }
+        }
+
         if (typeFilter !== "all") {
             results = results.filter((r) => r.type === typeFilter);
         }
         return results;
-    }, [enrichedResources, smartSearch, debouncedQuery, typeFilter]);
+    }, [enrichedResources, selectedCourse, debouncedQuery, findMatchingCourseCodes, strictTextSearch, typeFilter]);
 
     // Live suggestions: matching courses, matching resources, and recent searches.
     const suggestions = useMemo<SuggestionItem[]>(() => {
@@ -214,34 +224,51 @@ export default function DirectoryClient({
             return items;
         }
 
-        const lower = q.toLowerCase();
-        allCourses
-            .filter((c) => c.code.toLowerCase().includes(lower) || c.name.toLowerCase().includes(lower))
+        const normalizedQuery = normalizeSearchValue(q);
+        const courseMatches = allCourses
+            .filter((c) => {
+                const normalizedName = normalizeSearchValue(c.name);
+                const normalizedCode = normalizeSearchValue(c.code);
+                return normalizedName.includes(normalizedQuery) || normalizedCode.includes(normalizedQuery);
+            })
             .slice(0, 4)
-            .forEach((c) =>
-                items.push({
-                    key: `course-${c.code}`,
-                    kind: "course",
-                    label: c.name,
-                    sublabel: c.code,
-                    query: c.code,
-                })
-            );
+            .map((c) => ({
+                key: `course-${c.code}`,
+                kind: "course" as const,
+                label: c.name,
+                sublabel: c.code,
+                query: c.name,
+                courseCode: c.code,
+            }));
 
-        smartSearch(q)
-            .slice(0, 5)
-            .forEach((r) =>
+        courseMatches.forEach((c) =>
                 items.push({
-                    key: `resource-${r.id}`,
-                    kind: "resource",
-                    label: r.title,
-                    sublabel: courseNameMap[r.course_code] || r.course_code,
-                    query: r.title,
+                    key: c.key,
+                    kind: c.kind,
+                    label: c.label,
+                    sublabel: c.sublabel,
+                    query: c.query,
+                    courseCode: c.courseCode,
                 })
-            );
+        );
+
+        // When the query already maps to course tags, keep suggestions focused on courses only.
+        if (courseMatches.length === 0) {
+            strictTextSearch(q)
+                .slice(0, 5)
+                .forEach((r) =>
+                    items.push({
+                        key: `resource-${r.id}`,
+                        kind: "resource",
+                        label: r.title,
+                        sublabel: courseNameMap[r.course_code] || r.course_code,
+                        query: r.title,
+                    })
+                );
+        }
 
         return items;
-    }, [searchQuery, recentSearches, allCourses, smartSearch, courseNameMap]);
+    }, [searchQuery, recentSearches, allCourses, strictTextSearch, courseNameMap]);
 
     useEffect(() => {
         setActiveIndex(-1);
@@ -272,6 +299,9 @@ export default function DirectoryClient({
 
     function handleSuggestionSelect(item: SuggestionItem) {
         commitRecent(item.query);
+        if (item.courseCode) {
+            setSelectedCourse(item.courseCode);
+        }
         setSearchQuery(item.query);
         setFocused(false);
         setActiveIndex(-1);
@@ -433,7 +463,7 @@ export default function DirectoryClient({
                             aria-controls="resource-search-suggestions"
                             aria-autocomplete="list"
                             className="w-full pl-9 pr-14 py-2.5 rounded-lg bg-[#edf1f6] border border-[#dde3ec] text-sm text-[#222d32] placeholder:text-[#5a6472]/50 focus:outline-none focus:border-[#dc4835] focus:ring-2 focus:ring-[#dc4835]/10 transition-all duration-200"
-                            placeholder="Search titles, courses, or a topic..."
+                            placeholder="Search by course name or code..."
                             aria-label="Search resources"
                         />
                         {searchQuery && (

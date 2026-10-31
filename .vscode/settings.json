@@ -2,6 +2,5 @@
   "chat.tools.terminal.autoApprove": {
     "npm install": false
   },
-  "snyk.advanced.autoSelectOrganization": true,
-  "workbench.colorCustomizations": {}
+  "snyk.advanced.autoSelectOrganization": true
 }
