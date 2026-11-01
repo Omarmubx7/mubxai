@@ -8,7 +8,7 @@
 > Omar Mubaidin and the MUBX studio — not an official HTU product.
 
 Site: https://ai.mubx.dev
-Studio: https://mubx.dev
+Studio: https://mubx.dev — MUBX is a web engineering studio in Amman, Jordan. It builds websites, e-commerce stores, custom web systems and AI products for Jordanian brands.
 Founder: https://me.mubx.dev
 University served: Al Hussein Technical University (HTU) — https://htu.edu.jo
 Price: Free. No premium tier, no ads.

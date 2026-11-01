@@ -11,6 +11,11 @@ It was built and is maintained by Omar Mubaidin (mubxdev@proton.me) and the
 MUBX studio (https://mubx.dev). It is an independent project and is NOT an
 official Al Hussein Technical University product.
 
+MUBX studio is a web engineering studio based in Amman, Jordan. It builds
+websites, e-commerce stores, custom web systems and AI products for Jordanian
+brands, with transparent pricing and local payment support (Zain Cash, CliQ).
+Services and pricing: https://mubx.dev/services
+
 The platform covers:
 1. Course Tracker — degree progress, prerequisite roadmaps, GPA per requirement category.
 2. Semester Planner — term-by-term planning, CGPA prediction, study session logging,

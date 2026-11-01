@@ -37,9 +37,24 @@ export const organizationSchema = {
     url: `${STUDIO_URL}/mubxnewlogo.png`,
   },
   description:
-    "MUBX is a web engineering studio in Amman, Jordan. It builds high-performance websites, e-commerce stores, web systems and AI products — including MUBXAI.",
+    "MUBX is a web engineering studio in Amman, Jordan. It builds high-performance websites, e-commerce stores, custom web systems and AI products — including MUBXAI.",
   email: "mubxdev@proton.me",
   foundingDate: "2024",
+  priceRange: "$$",
+  areaServed: [
+    { "@type": "Country", name: "Jordan" },
+    { "@type": "City", name: "Amman" },
+  ],
+  knowsAbout: [
+    "Website Development",
+    "Web Design",
+    "Programming",
+    "Affordable Web Development",
+    "E-commerce",
+    "Custom Web Systems",
+    "Technical SEO",
+    "Next.js & React Development",
+  ],
   address: {
     "@type": "PostalAddress",
     addressLocality: "Amman",

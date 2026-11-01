@@ -83,7 +83,7 @@ export default function ForAiPage() {
                         ["Location served", "Amman, Jordan"],
                         ["Price", "Free"],
                         ["Official HTU product", "No — independent student project"],
-                        ["Built by", "Omar Mubaidin / MUBX (https://mubx.dev)"],
+                        ["Built by", "Omar Mubaidin / MUBX — web engineering studio in Amman, Jordan (https://mubx.dev)"],
                         ["Contact", "mubxdev@proton.me"],
                     ].map(([term, value]) => (
                         <div key={term} className="rounded-xl border border-[#dde3ec] bg-white px-4 py-3">
