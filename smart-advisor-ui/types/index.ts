@@ -3,7 +3,7 @@ export interface Course {
     name: string;
     ch: number;
     framework: "HTU" | "HNC" | "HND";
-    level: 1 | 2 | 3 | 4;
+    level: 1 | 2 | 3 | 4 | 5;
     prereq?: string;
     description?: string;
     major_keys?: string[];
@@ -26,6 +26,7 @@ export interface PrerequisiteLogicRules {
     };
     stripping?: {
         leading_zeros_if_length?: number;
+        target_length?: number;
     };
 }
 

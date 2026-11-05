@@ -5,3 +5,14 @@ export const SEMESTERS = [
 ];
 
 export const APP_NAME = "MUBXAI";
+
+/**
+ * Course codes that exist only so the resources directory can categorise
+ * uploads. They must never appear in the Course Tracker (or count toward
+ * degree progress), but they stay in curriculum.json for resource search.
+ */
+export const RESOURCE_ONLY_COURSE_CODES = new Set(["30301125"]);
+
+export function isTrackerVisibleCourse(course: { code?: string }): boolean {
+    return !course?.code || !RESOURCE_ONLY_COURSE_CODES.has(course.code);
+}

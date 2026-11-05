@@ -14,6 +14,7 @@ import dynamic from "next/dynamic";
 import { safeStorage } from "@/lib/safe-storage";
 import { fetchWithRetry, fetchJSON } from "@/lib/fetch-retry";
 import { useIsAdmin } from "@/lib/use-is-admin";
+import { isTrackerVisibleCourse } from "@/lib/constants";
 
 import type { CourseTrackerViewProps } from "@/components/CourseTrackerView";
 const StudentLogin = dynamic(() => import("@/components/StudentLogin"), { ssr: false });
@@ -108,6 +109,7 @@ export default function HomeClient() {
                 const scopedShared = sharedArr.filter(isCourseApplicableToMajor);
                 const combined = [...scopedShared, ...majorArr];
                 return combined.filter((item) => {
+                    if (!isTrackerVisibleCourse(item)) return false;
                     if (!item.code) return true;
                     if (seenGlobal.has(item.code)) return false;
                     seenGlobal.add(item.code);

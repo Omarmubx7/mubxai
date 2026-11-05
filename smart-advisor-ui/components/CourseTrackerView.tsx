@@ -6,18 +6,32 @@ import { Course, CourseData, CurriculumRules } from '@/types';
 import CourseCard from './ui/CourseCard';
 import { checkPrerequisites } from '@/lib/advisor';
 import { calculateGPA } from '@/lib/grading';
-import { CheckCircle2, Trophy, RotateCcw, Loader2, GraduationCap, BookOpen, Target, Star, Sparkles, AlertCircle, TrendingUp } from 'lucide-react';
+import { CheckCircle2, Trophy, RotateCcw, Loader2, GraduationCap, BookOpen, Target, Star, Sparkles, AlertCircle, TrendingUp, Network } from 'lucide-react';
 import Link from 'next/link';
 import StudentDashboard from './StudentDashboard';
 import ConfirmDialog from './ui/ConfirmDialog';
 import { useToast } from './ui/Toast';
 import dynamic from 'next/dynamic';
 import { safeStorage } from '@/lib/safe-storage';
+import { isTrackerVisibleCourse } from '@/lib/constants';
+import { MAJOR_LIST } from '@/lib/majors';
+import type { CourseVisualState } from '@/lib/course-tree/types';
+import CourseTreeView from './course-tree/CourseTreeView';
 import SemesterSetupWizard from './SemesterSetupWizard';
 
 const CourseNotesModal = dynamic(() => import('./CourseNotesModal'), {
     ssr: false,
 });
+
+const EMPTY_COURSE_STATE: CourseVisualState = {
+    isCompleted: false,
+    isInProgress: false,
+    isLocked: false,
+    hasPrereqWarning: false,
+    missingPrereqs: [],
+    isSandboxSelected: false,
+    isDimmed: false,
+};
 
 // Parse and format exam tips that may be pipe-separated strings
 // Format: "day | course_code | hours | tip_text" or just plain text
@@ -87,7 +101,7 @@ function CourseTrackerView({
     setPreviousGpaHistory,
     resetProgress
 }: Readonly<CourseTrackerViewProps>) {
-    const [viewMode, setViewMode] = useState<"level" | "category">("level");
+    const [viewMode, setViewMode] = useState<"level" | "category" | "tree">("level");
     const [showResetConfirm, setShowResetConfirm] = useState(false);
     const [selectedCourseForNotes, setSelectedCourseForNotes] = useState<{ id: string; title: string } | null>(null);
     const { toast } = useToast();
@@ -264,13 +278,6 @@ function CourseTrackerView({
         }
     }, [sandboxMode, sandboxCourses, semesterType]);
 
-    const isLanguageCourse = (course: Course) => {
-        const name = (course.name || '').toLowerCase();
-        if (name === 'languages') return true;
-        // Only remove generic "Languages" category, keep specific English/Arabic courses
-        return false;
-    };
-
     const allCourses = useMemo(
         () => [
             ...data.university_requirements,
@@ -279,7 +286,7 @@ function CourseTrackerView({
             ...data.department_requirements,
             ...data.electives,
             ...(data.work_market_requirements ?? []),
-        ].filter(course => !isLanguageCourse(course)),
+        ].filter(isTrackerVisibleCourse),
         [
             data.university_requirements,
             data.college_requirements,
@@ -292,7 +299,7 @@ function CourseTrackerView({
     const completedCodes = new Set(completedCourses.keys());
 
     const courseMap = Object.fromEntries(allCourses.map((c) => [c.code, c.name]));
-    const allCourseCodes = new Set(allCourses.map(c => c.code));
+    const allCourseCodes = useMemo(() => new Set(allCourses.map(c => c.code)), [allCourses]);
 
     // Determine rule set from majorKey
     const degreeTypeValues = Object.values(rules.degree_types);
@@ -308,7 +315,10 @@ function CourseTrackerView({
     const TOTAL_CAP = totalCredits;
 
     // ── University Requirements
-    const uniReqCodes = new Set(data.university_requirements.map(r => r.code));
+    const uniReqCodes = useMemo(
+        () => new Set(data.university_requirements.map(r => r.code)),
+        [data.university_requirements]
+    );
 
     // ── University Electives
     const uniElectiveCodes = useMemo(
@@ -746,74 +756,126 @@ function CourseTrackerView({
         }
     };
 
-    const renderCourseCard = (course: Course) => {
-        let isElectiveLocked = false;
-        let capMax = 0;
+    // ── Shared course state (grid cards + tree views) ──────────────────────
+    const courseStates = useMemo(() => {
+        const states = new Map<string, CourseVisualState>();
+        const isAtCap = sandboxCredits >= SEMESTER_MAX;
 
-        if (sandboxMode) {
-            const isSelected = sandboxCourses.has(course.code);
-            const isAtCap = sandboxCredits >= SEMESTER_MAX;
-            return (
-                <CourseCard
-                    key={course.code}
-                    course={course}
-                    isCompleted={completedCourses.has(course.code)}
-                    isInProgress={plannerCourseCodes.has(course.code) && !completedCourses.has(course.code)}
-                    grade={completedCourses.get(course.code) || "M"}
-                    isLocked={false}
-                    hasPrereqWarning={false}
-                    lockReason={undefined}
-                    missingPrereqs={[]}
-                    courseMap={courseMap}
-                    completedCredits={completedCredits}
-                    onToggle={() => toggleSandboxCourse(course.code)}
-                    onOpenNotes={() => setSelectedCourseForNotes({ id: course.code, title: course.name })}
-                    isSandboxSelected={isSelected}
-                    isDimmed={isAtCap && !isSelected && !completedCourses.has(course.code)}
-                />
+        for (const course of allCourses) {
+            const isCompleted = completedCourses.has(course.code);
+            const isInProgress = plannerCourseCodes.has(course.code) && !isCompleted;
+
+            if (sandboxMode) {
+                const isSandboxSelected = sandboxCourses.has(course.code);
+                states.set(course.code, {
+                    isCompleted,
+                    isInProgress,
+                    isLocked: false,
+                    hasPrereqWarning: false,
+                    lockReason: undefined,
+                    missingPrereqs: [],
+                    isSandboxSelected,
+                    isDimmed: isAtCap && !isSandboxSelected && !isCompleted,
+                });
+                continue;
+            }
+
+            let isElectiveLocked = false;
+            let capMax = 0;
+
+            if (uniElectiveCodes.has(course.code)) {
+                isElectiveLocked = tickedUniElecCount >= MAX_UNI_ELECTIVES && !isCompleted;
+                capMax = MAX_UNI_ELECTIVES;
+            } else if (deptElectiveCodes.has(course.code)) {
+                isElectiveLocked = deptElecCapReached && !isCompleted;
+                capMax = MAX_DEPT_ELECTIVES;
+            }
+
+            const { isLocked: prereqLocked, missing, lockReason: prereqReason } = checkPrerequisites(
+                course,
+                completedCourses,
+                completedCredits,
+                allCourseCodes,
+                rules.logic_rules?.prerequisites
             );
+            const isUniversitySubject = uniReqCodes.has(course.code) || uniElectiveCodes.has(course.code);
+            const isLocked = isElectiveLocked || (!isUniversitySubject && prereqLocked);
+            const hasPrereqWarning = isUniversitySubject && prereqLocked;
+
+            let lockReason: string | undefined = undefined;
+            if (isElectiveLocked) {
+                lockReason = `Max ${capMax} electives reached — untick one to swap`;
+            } else if (prereqLocked) {
+                lockReason = prereqReason;
+            }
+
+            states.set(course.code, {
+                isCompleted,
+                isInProgress,
+                isLocked,
+                hasPrereqWarning,
+                lockReason,
+                missingPrereqs: missing,
+                isSandboxSelected: false,
+                isDimmed: false,
+            });
         }
 
-        if (uniElectiveCodes.has(course.code)) {
-            isElectiveLocked = tickedUniElecCount >= MAX_UNI_ELECTIVES && !completedCourses.has(course.code);
-            capMax = MAX_UNI_ELECTIVES;
-        } else if (deptElectiveCodes.has(course.code)) {
-            isElectiveLocked = deptElecCapReached && !completedCourses.has(course.code);
-            capMax = MAX_DEPT_ELECTIVES;
-        }
+        return states;
+    }, [
+        allCourses,
+        completedCourses,
+        plannerCourseCodes,
+        sandboxMode,
+        sandboxCourses,
+        sandboxCredits,
+        SEMESTER_MAX,
+        uniElectiveCodes,
+        deptElectiveCodes,
+        uniReqCodes,
+        tickedUniElecCount,
+        deptElecCapReached,
+        MAX_UNI_ELECTIVES,
+        MAX_DEPT_ELECTIVES,
+        completedCredits,
+        allCourseCodes,
+        rules,
+    ]);
 
-        const { isLocked: prereqLocked, missing, lockReason: prereqReason } = checkPrerequisites(
-            course,
-            completedCourses,
-            completedCredits,
-            allCourseCodes,
-            rules.logic_rules?.prerequisites
-        );
-        const isUniversitySubject = uniReqCodes.has(course.code) || uniElectiveCodes.has(course.code);
-        const isLocked = isElectiveLocked || (!isUniversitySubject && prereqLocked);
-        const hasPrereqWarning = isUniversitySubject && prereqLocked;
+    const getCourseState = useCallback(
+        (course: Course): CourseVisualState =>
+            courseStates.get(course.code) ?? EMPTY_COURSE_STATE,
+        [courseStates]
+    );
 
-        let lockReason: string | undefined = undefined;
-        if (isElectiveLocked) {
-            lockReason = `Max ${capMax} electives reached — untick one to swap`;
-        } else if (prereqLocked) {
-            lockReason = prereqReason;
-        }
+    const majorLabel = useMemo(
+        () => MAJOR_LIST.find((major) => major.key === majorKey)?.label ?? majorKey,
+        [majorKey]
+    );
 
+    const handleTreeToggle = useCallback(
+        (code: string) => {
+            if (sandboxMode) toggleSandboxCourse(code);
+            else toggleCourse(code);
+        },
+        [sandboxMode, toggleSandboxCourse, toggleCourse]
+    );
+
+    const handleTreeNotes = useCallback((course: Course) => {
+        setSelectedCourseForNotes({ id: course.code, title: course.name });
+    }, []);
+
+    const renderCourseCard = (course: Course) => {
+        const state = getCourseState(course);
         return (
             <CourseCard
                 key={course.code}
                 course={course}
-                isCompleted={completedCourses.has(course.code)}
-                isInProgress={plannerCourseCodes.has(course.code) && !completedCourses.has(course.code)}
+                {...state}
                 grade={completedCourses.get(course.code) || "M"}
-                isLocked={isLocked}
-                hasPrereqWarning={hasPrereqWarning}
-                lockReason={lockReason}
-                missingPrereqs={missing}
                 courseMap={courseMap}
                 completedCredits={completedCredits}
-                onToggle={() => toggleCourse(course.code)}
+                onToggle={() => (sandboxMode ? toggleSandboxCourse(course.code) : toggleCourse(course.code))}
                 onOpenNotes={() => setSelectedCourseForNotes({ id: course.code, title: course.name })}
             />
         );
@@ -1142,27 +1204,43 @@ function CourseTrackerView({
             <div className="flex items-center justify-between gap-3 pb-4 border-b border-[#dde3ec]">
                 <div className="flex items-center gap-2 sm:gap-3 shrink-0">
                     <div className="w-8 h-8 sm:w-10 sm:h-10 rounded-xl bg-[#dc4835]/10 border-2 border-[#dc4835]/25 flex items-center justify-center" style={{ color: '#dc4835' }}>
-                        {viewMode === 'level' ? <Trophy className="w-4 h-4 sm:w-5 sm:h-5" /> : <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />}
+                        {viewMode === 'level'
+                            ? <Trophy className="w-4 h-4 sm:w-5 sm:h-5" />
+                            : viewMode === 'category'
+                                ? <BookOpen className="w-4 h-4 sm:w-5 sm:h-5" />
+                                : <Network className="w-4 h-4 sm:w-5 sm:h-5" />}
                     </div>
                     <div>
                         <h3 className="text-sm sm:text-lg font-black text-[#222d32]">Curriculum View</h3>
-                        <p className="text-[10px] sm:text-xs text-[#5a6472] font-bold hidden sm:block">Browse by {viewMode === 'level' ? 'academic year' : 'requirement type'}</p>
+                        <p className="text-[10px] sm:text-xs text-[#5a6472] font-bold hidden sm:block">
+                            Browse by {viewMode === 'level' ? 'academic year' : viewMode === 'category' ? 'requirement type' : 'prerequisite tree'}
+                        </p>
                     </div>
                 </div>
 
                 <div className="flex items-center gap-2 sm:gap-4">
                     <div id="wt-view-toggle" className="flex p-0.5 sm:p-1 bg-white border-2 border-[#dc4835]/20 rounded-lg sm:rounded-xl">
-                        {(["level", "category"] as const).map((mode) => (
+                        {([
+                            { mode: "level" as const, label: "Roadmap", icon: <Trophy className="w-3.5 h-3.5" /> },
+                            { mode: "category" as const, label: "Categories", icon: <BookOpen className="w-3.5 h-3.5" /> },
+                            { mode: "tree" as const, label: "Tree", icon: <Network className="w-3.5 h-3.5" /> },
+                        ]).map(({ mode, label, icon }) => (
                             <button
                                 key={mode}
+                                type="button"
                                 onClick={() => setViewMode(mode)}
-                                className={`px-2.5 sm:px-6 py-1.5 sm:py-2.5 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-black transition-all duration-300
+                                title={label}
+                                aria-pressed={viewMode === mode}
+                                data-testid={`view-mode-${mode}`}
+                                className={`flex items-center gap-1.5 px-2 sm:px-4 py-1.5 sm:py-2.5 rounded-md sm:rounded-lg text-[10px] sm:text-xs font-black transition-all duration-300
                                     ${viewMode === mode
                                         ? "text-white bg-[#dc4835] shadow-md shadow-[#dc4835]/25"
                                         : "text-[#5a6472] hover:text-[#dc4835] hover:bg-[#dc4835]/5"
                                     }`}
                             >
-                                {mode === "level" ? "Roadmap" : "Categories"}
+                                {icon}
+                                <span className="hidden sm:inline">{label}</span>
+                                <span className="sr-only sm:hidden">{label}</span>
                             </button>
                         ))}
                     </div>
@@ -1404,6 +1482,20 @@ function CourseTrackerView({
                 )}
             </AnimatePresence>
 
+            {viewMode === "tree" ? (
+                <CourseTreeView
+                    data={data}
+                    majorKey={majorKey}
+                    majorLabel={majorLabel}
+                    rules={rules}
+                    completedCourses={completedCourses}
+                    sandboxMode={sandboxMode}
+                    isMobile={isMobile}
+                    getCourseState={getCourseState}
+                    onToggleCourse={handleTreeToggle}
+                    onOpenNotes={handleTreeNotes}
+                />
+            ) : (
             <div className="space-y-6 sm:space-y-12">
                 {Object.entries(groups).map(([title, courses]) => {
                     const catStyle: Record<string, { icon: React.ReactNode; color: string; bg: string; border: string; headerText: string; badge: string; divider: string }> = {
@@ -1493,6 +1585,7 @@ function CourseTrackerView({
                     /* ^^^ end of section */
                 })}
             </div>
+            )}
 
             <CourseNotesModal
                 isOpen={!!selectedCourseForNotes}

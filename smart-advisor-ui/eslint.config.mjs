@@ -9,6 +9,8 @@ export default tseslint.config(
       "node_modules/",
       ".next/",
       "public/",
+      "src/",
+      "data/",
       "*.config.*",
       "vitest.config.*",
       "playwright.config.*",
