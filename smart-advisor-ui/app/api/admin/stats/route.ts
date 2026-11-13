@@ -273,7 +273,7 @@ async function loadRecentActivity() {
                 type: 'visit',
                 student_id: row.student_id || 'Anonymous',
                 ip: row.ip_address || 'Unknown',
-                userAgent: row.user_agent,
+                userAgent: row.user_agent || 'Unknown',
                 vendor: row.device_vendor,
                 model: row.device_model,
                 os: `${row.os_name || 'Unknown'} ${row.os_version || ''}`.trim(),
