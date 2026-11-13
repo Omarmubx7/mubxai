@@ -1,7 +1,7 @@
 name = "mubxai"
 compatibility_date = "2026-11-12"
 main = ".open-next/worker.js"
-assets = { directory = ".open-next/assets" }
+assets = { directory = ".open-next/assets", binding = "ASSETS" }
 
 [build]
 command = "npm run build:cf"
