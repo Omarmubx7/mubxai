@@ -1,0 +1,35 @@
+name = "mubxai"
+compatibility_date = "2026-11-12"
+main = ".open-next/worker.js"
+assets = { directory = ".open-next/assets" }
+
+[build]
+command = "npm run build:cf"
+
+[vars]
+NEXTAUTH_URL = "https://ai.mubx.dev"
+# Secrets (set in Cloudflare Dashboard → Workers → mubxai → Settings → Variables):
+# NEXTAUTH_SECRET
+# GOOGLE_CLIENT_ID
+# GOOGLE_CLIENT_SECRET
+# NEXT_PUBLIC_GOOGLE_CLIENT_ID
+# GROQ_API_TOKEN
+# R2_ACCOUNT_ID
+# R2_ACCESS_KEY_ID
+# R2_SECRET_ACCESS_KEY
+# R2_BUCKET_NAME
+# R2_PUBLIC_URL
+# NEXT_PUBLIC_OWNER_NAME
+# NEXT_PUBLIC_WHATSAPP_NUMBER
+# NEXT_PUBLIC_SITE_URL
+# OWNER_EMAIL
+# OWNER_USER_ID
+# NEXT_PUBLIC_PORTFOLIO_URL
+# GOOGLE_CSE_ID
+# GOOGLE_CSE_API_KEY
+# TELEGRAM_BOT_TOKEN
+# TELEGRAM_OWNER_CHAT_ID
+# SERPER_API_KEY
+# ALLOW_SIGNUP
+# ADMIN_SECRET
+# DATABASE_URL

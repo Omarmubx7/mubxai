@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowRight, Lock, User } from "lucide-react";
+import { ArrowRight, Lock, User, AlertCircle } from "lucide-react";
 import { signIn } from "@/lib/session-stub";
 import Image from "next/image";
 
@@ -191,8 +191,19 @@ export default function StudentLogin() {
                             type="button"
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.99 }}
-                            onClick={() => {
-                                signIn('google', { callbackUrl: getCallbackUrl() });
+                            onClick={async () => {
+                                try {
+                                    const result = await signIn('google', { callbackUrl: getCallbackUrl() });
+                                    if (result?.error) {
+                                        setError(result.error);
+                                    } else if (result?.url) {
+                                        // Fallback: if signIn doesn't navigate, force navigate
+                                        window.location.href = result.url;
+                                    }
+                                } catch (err) {
+                                    console.error('Google sign-in failed:', err);
+                                    setError('Failed to start Google sign-in. Please try again.');
+                                }
                             }}
                             aria-label="Continue with Google"
                             className="w-full flex items-center justify-center gap-3 py-4 rounded-lg bg-[#edf1f6] border border-[#dde3ec] text-[#222d32] text-sm font-semibold transition-all hover:bg-[#dde3ec] group"
