@@ -10,7 +10,7 @@
     "lint": "eslint .",
     "lint:fix": "eslint . --fix",
     "build": "prisma generate && next build",
-    "build:cf": "prisma generate && next build",
+    "build:cf": "prisma generate && next build && npx @opennextjs/cloudflare build",
     "vercel-build": "prisma generate && next build",
     "db:migrate": "prisma migrate deploy",
     "start": "next start",
