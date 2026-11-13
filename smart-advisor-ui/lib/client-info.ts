@@ -22,6 +22,19 @@ export async function getClientInfo(): Promise<VisitorLog> {
             browser_name: result.browser.name || 'unknown'
         };
     } catch (e) {
+        // During static generation, headers() is not available
+        // Return default values instead of throwing
+        if (e instanceof Error && e.message.includes('Dynamic server usage')) {
+            return {
+                ip_address: 'unknown',
+                user_agent: 'unknown',
+                device_vendor: 'unknown',
+                device_model: 'unknown',
+                os_name: 'unknown',
+                os_version: 'unknown',
+                browser_name: 'unknown'
+            };
+        }
         console.error("[getClientInfo] Error:", e);
         return {
             ip_address: 'unknown',

@@ -127,6 +127,16 @@ export async function logVisitor(data: VisitorLog): Promise<void> {
             }
         });
     } catch (e) {
+        // During static generation, DATABASE_URL is not available
+        // Silently skip logging instead of throwing
+        if (e instanceof Error && (
+            e.message.includes('Can\'t reach database server') ||
+            e.message.includes('DATABASE_URL') ||
+            e.message.includes('connection') ||
+            e.message.includes('ECONNREFUSED')
+        )) {
+            return;
+        }
         if (!isMissingTableError(e)) {
             console.error('Failed to log visitor', e);
         }
