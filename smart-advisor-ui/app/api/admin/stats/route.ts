@@ -1,5 +1,4 @@
 import { NextResponse, NextRequest } from 'next/server';
-import { sql } from '@vercel/postgres';
 import { getAllStudents, initDB } from '@/lib/database';
 import { getAIUsageStats } from '@/lib/ai-logger';
 import { promises as fs } from 'node:fs';
@@ -82,8 +81,8 @@ async function getCourseMap(): Promise<Map<string, CourseEntry>> {
 
 async function loadProgressRows(): Promise<ProgressRow[]> {
     try {
-        const { rows } = await sql`SELECT student_id, major, completed FROM student_progress`;
-        return rows as ProgressRow[];
+        const rows = await prisma.$queryRaw<ProgressRow[]>`SELECT student_id, major, completed FROM student_progress`;
+        return rows;
     } catch {
         return [];
     }
@@ -217,7 +216,7 @@ function buildAcademicStats(
 
 async function loadTrafficByDay() {
     try {
-        const { rows } = await sql`
+        const rows = await prisma.$queryRaw<{ day: Date; count: bigint }[]>`
             SELECT DATE(visited_at) as day, COUNT(*) as count
             FROM visitor_logs
             WHERE visited_at >= NOW() - INTERVAL '30 days'
@@ -235,7 +234,7 @@ async function loadTrafficByDay() {
 
 async function loadDeviceBreakdown() {
     try {
-        const { rows } = await sql`
+        const rows = await prisma.$queryRaw<{ os: string; browser: string; count: bigint }[]>`
             SELECT
                 COALESCE(os_name, 'Unknown') as os,
                 COALESCE(browser_name, 'Unknown') as browser,
@@ -250,7 +249,7 @@ async function loadDeviceBreakdown() {
             count: Number(r.count),
         }));
 
-        const { rows: totalRows } = await sql`SELECT COUNT(*) as total FROM visitor_logs`;
+        const totalRows = await prisma.$queryRaw<{ total: bigint }[]>`SELECT COUNT(*) as total FROM visitor_logs`;
         const totalVisitors = Number(totalRows[0]?.total ?? 0);
 
         return { deviceBreakdown, totalVisitors };
@@ -261,7 +260,7 @@ async function loadDeviceBreakdown() {
 
 async function loadRecentActivity() {
     try {
-        const { rows: visitRows } = await sql`
+        const visitRows = await prisma.$queryRaw<{ student_id: string | null; ip_address: string | null; user_agent: string | null; device_vendor: string | null; device_model: string | null; os_name: string | null; os_version: string | null; browser_name: string | null; visited_at: Date }[]>`
             SELECT student_id, ip_address, user_agent, device_vendor, device_model, os_name, os_version, browser_name, visited_at
             FROM visitor_logs
             ORDER BY visited_at DESC
@@ -292,7 +291,7 @@ async function loadRecentActivity() {
 
 async function loadHeatmap() {
     try {
-        const { rows } = await sql`
+        const rows = await prisma.$queryRaw<{ day: number; hour: number; count: bigint }[]>`
             SELECT
                 EXTRACT(DOW FROM visited_at)::int as day,
                 EXTRACT(HOUR FROM visited_at)::int as hour,
@@ -313,12 +312,12 @@ async function loadHeatmap() {
 
 async function loadWeekComparison() {
     try {
-        const { rows: tw } = await sql`
+        const tw = await prisma.$queryRaw<{ count: bigint }[]>`
             SELECT COUNT(*) as count FROM visitor_logs
             WHERE visited_at >= DATE_TRUNC('week', NOW())
         `;
 
-        const { rows: lw } = await sql`
+        const lw = await prisma.$queryRaw<{ count: bigint }[]>`
             SELECT COUNT(*) as count FROM visitor_logs
             WHERE visited_at >= DATE_TRUNC('week', NOW()) - INTERVAL '7 days'
             AND visited_at < DATE_TRUNC('week', NOW())

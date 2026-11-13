@@ -2,7 +2,6 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { headers } from "next/headers";
 import "./globals.css";
-import { Analytics } from "@vercel/analytics/react";
 import { getClientInfo } from "@/lib/client-info";
 import { logVisitor } from "@/lib/database";
 import { Providers } from "@/components/Providers";
@@ -176,7 +175,6 @@ export default async function RootLayout({
             <MobileNav />
           </Providers>
         </ThemeProvider>
-        <Analytics />
       </body>
     </html>
   );
