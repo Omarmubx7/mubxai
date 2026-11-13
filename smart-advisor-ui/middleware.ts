@@ -20,13 +20,12 @@ export function middleware(request: NextRequest) {
 
     const cspHeader = `
         default-src 'self';
-        script-src 'self' 'nonce-${nonce}' https://www.googletagmanager.com https://cdn.vercel-insights.com https://va.vercel-scripts.com https://vercel.live;
-        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://vercel.live;
-        font-src 'self' https://fonts.gstatic.com https://r2cdn.perplexity.ai https://vercel.live;
-        img-src 'self' data: https: https://vercel.live;
-        connect-src 'self' https://*.r2.cloudflarestorage.com https://vitals.vercel-insights.com https://va.vercel-scripts.com https://vercel.live https://geoip.cactusglobal.io https://accounts.google.com wss://ws-us3.pusher.com wss://ws-eu.pusher.com https://api-us3.pusher.com https://api-eu.pusher.com https://sockjs-us3.pusher.com https://sockjs-eu.pusher.com;
-        frame-src 'self' https://vercel.live https://www.youtube.com https://accounts.google.com;
-        child-src 'self' https://vercel.live;
+        script-src 'self' 'nonce-${nonce}' https://www.googletagmanager.com https://accounts.google.com;
+        style-src 'self' 'unsafe-inline' https://fonts.googleapis.com;
+        font-src 'self' https://fonts.gstatic.com https://r2cdn.perplexity.ai;
+        img-src 'self' data: https:;
+        connect-src 'self' https://*.r2.cloudflarestorage.com https://geoip.cactusglobal.io https://accounts.google.com https://oauth2.googleapis.com https://www.googleapis.com wss://ws-us3.pusher.com wss://ws-eu.pusher.com https://api-us3.pusher.com https://api-eu.pusher.com https://sockjs-us3.pusher.com https://sockjs-eu.pusher.com;
+        frame-src 'self' https://www.youtube.com https://accounts.google.com;
         object-src 'none';
         base-uri 'self';
         form-action 'self';

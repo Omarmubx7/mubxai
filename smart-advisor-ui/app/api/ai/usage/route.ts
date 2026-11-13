@@ -5,7 +5,7 @@ import { resolveAuthenticatedUser } from '@/lib/resolve-user';
 import { checkDailyAiUsageLimit } from '@/lib/ai-usage-limit';
 
 export async function GET(request: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await resolveAuthenticatedUser(session);

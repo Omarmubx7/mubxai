@@ -5,7 +5,7 @@ import path from "node:path";
 import fs from "node:fs/promises";
 
 export async function GET() {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const dataDir = path.join(process.cwd(), "public/data");

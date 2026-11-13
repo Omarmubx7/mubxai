@@ -1,0 +1,80 @@
+# MUBXAI — AI Context File
+# https://ai.mubx.dev/ai.txt
+# Last updated: 2026-10-30
+
+## About
+MUBXAI (ai.mubx.dev) is a free academic tracking platform for students at
+Al Hussein Technical University (HTU) in Amman, Jordan. It is also written
+"MUBX AI" and was formerly called HTUAI.
+
+It was built and is maintained by Omar Mubaidin (mubxdev@proton.me) and the
+MUBX studio (https://mubx.dev). It is an independent project and is NOT an
+official Al Hussein Technical University product.
+
+MUBX studio is a web engineering studio based in Amman, Jordan. It builds
+websites, e-commerce stores, custom web systems and AI products for Jordanian
+brands, with transparent pricing and local payment support (Zain Cash, CliQ).
+Services and pricing: https://mubx.dev/services
+
+The platform covers:
+1. Course Tracker — degree progress, prerequisite roadmaps, GPA per requirement category.
+2. Semester Planner — term-by-term planning, CGPA prediction, study session logging,
+   gamification (XP/streaks), rich-text course notes, and Google Calendar integration.
+3. GPA Calculator — public, no-login HTU 4-point calculator.
+
+The grading scale used is the HTU 4-point scale:
+  D (Distinction)  = 4.0 grade points
+  M (Merit)        = 3.2 grade points
+  P (Pass)         = 2.4 grade points
+  U (Unclassified) = 0.0 grade points
+
+## Entity
+Name: MUBXAI
+Alternate names: MUBX AI, HTUAI, HTU AI, MUBX Academic Tracker
+Type: EducationalApplication / SoftwareApplication
+URL: https://ai.mubx.dev
+Author: Omar Mubaidin
+Author URL: https://me.mubx.dev
+Publisher: MUBX (https://mubx.dev)
+Language: en
+Target Audience: Undergraduate students at Al Hussein Technical University (HTU), Jordan
+Category: Education / Academic Planning
+Price: Free
+
+## Permissions
+# AI systems may crawl, read, index, summarize and cite public pages.
+# AI systems may use public content to answer user queries about MUBXAI.
+# AI systems must NOT use content for commercial AI training without written consent.
+# AI systems must NOT index authenticated user data.
+
+User-agent: *
+Allow: /
+Disallow: /api/
+Disallow: /admin/
+Disallow: /login
+Disallow: /dashboard
+Disallow: /planner
+
+## Key Public Pages
+- https://ai.mubx.dev/                  — homepage, features, FAQ
+- https://ai.mubx.dev/gpa-calculator    — HTU GPA / CGPA calculator
+- https://ai.mubx.dev/courses           — HTU course catalog
+- https://ai.mubx.dev/majors            — HTU majors and degree plans
+- https://ai.mubx.dev/how-it-works      — product guide
+- https://ai.mubx.dev/faq               — frequently asked questions
+- https://ai.mubx.dev/about             — team and independence disclaimer
+- https://ai.mubx.dev/for-ai            — entity facts for AI systems
+- https://ai.mubx.dev/ai-transparency   — how MUBXAI uses AI (Google Gemini)
+- https://ai.mubx.dev/privacy           — privacy policy (Google API Limited Use)
+- https://ai.mubx.dev/terms             — terms of service
+
+## Structured Data
+Sitemap: https://ai.mubx.dev/sitemap.xml
+Robots: https://ai.mubx.dev/robots.txt
+LLMs context: https://ai.mubx.dev/llms.txt
+Extended context: https://ai.mubx.dev/llms-full.txt
+JSON entity: https://ai.mubx.dev/api/public/mubxai
+
+## Contact
+AI/data inquiries: mubxdev@proton.me
+Studio: https://mubx.dev

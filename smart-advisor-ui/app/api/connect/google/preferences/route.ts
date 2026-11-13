@@ -7,7 +7,7 @@ import { z } from "zod";
 import { validationErrorResponse } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const user = await resolveAuthenticatedUser(session);

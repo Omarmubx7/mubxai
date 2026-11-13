@@ -74,7 +74,7 @@ export async function GET(req: Request) {
     const courseCode = searchParams.get("course_code") || searchParams.get("courseCode");
     const majorKey = searchParams.get("major");
 
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     const user = session?.user ? await resolveAuthenticatedUser(session) : null;
 
     try {
@@ -145,7 +145,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

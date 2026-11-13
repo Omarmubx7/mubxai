@@ -50,7 +50,7 @@ async function saveSemester(userId: number, payload: {
 }
 
 export async function GET(req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
@@ -74,7 +74,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {

@@ -54,6 +54,9 @@ export interface DependencyMapProps {
     onFocus: (code: string | null) => void;
     onOpenNotes: (course: Course) => void;
     isMobile: boolean;
+    criticalCodes?: Set<string>;
+    initialMapMode?: "all" | "focus";
+    compactLabels?: boolean;
 }
 
 function miniMapNodeColor(node: Node): string {

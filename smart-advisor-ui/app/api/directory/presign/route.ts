@@ -17,7 +17,7 @@ function generateKey(filename: string): string {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) {
         return NextResponse.json({ error: "You must be signed in to upload files." }, { status: 401 });
     }

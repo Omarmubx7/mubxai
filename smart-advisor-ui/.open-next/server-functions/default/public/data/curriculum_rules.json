@@ -1,0 +1,67 @@
+{
+    "degree_types": {
+        "engineering": {
+            "total_credits": 166,
+            "max_dept_electives": 3,
+            "max_uni_electives": 3,
+            "level_count": 5,
+            "major_keys": [
+                "electrical_engineering",
+                "energy_engineering",
+                "industrial_engineering"
+            ]
+        },
+        "mechanical_engineering": {
+            "total_credits": 166,
+            "max_dept_electives": 4,
+            "max_uni_electives": 3,
+            "level_count": 5,
+            "major_keys": [
+                "mechanical_engineering"
+            ]
+        },
+        "computing_bsc": {
+            "total_credits": 135,
+            "max_dept_electives": 3,
+            "max_uni_electives": 3,
+            "level_count": 4,
+            "major_keys": [
+                "computer_science",
+                "cybersecurity",
+                "data_science"
+            ]
+        },
+        "technical_hnd": {
+            "total_credits": 72,
+            "max_dept_electives": 1,
+            "max_uni_electives": 0,
+            "level_count": 2,
+            "major_keys": [
+                "game_design"
+            ]
+        }
+    },
+    "logic_rules": {
+        "prerequisites": {
+            "code_regex": "\\b(?:\\d{6,10})\\b",
+            "separators": {
+                "and": [
+                    "AND",
+                    "&"
+                ],
+                "or": [
+                    "OR"
+                ]
+            },
+            "stripping": {
+                "leading_zeros_if_length": 10,
+                "target_length": 8
+            },
+            "auto_satisfy_external": true
+        },
+        "badges": {
+            "halfway": 0.5,
+            "century": 100
+        }
+    }
+}

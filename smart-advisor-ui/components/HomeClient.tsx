@@ -6,7 +6,7 @@ import LandingPage from "@/components/LandingPage";
 import SiteFooter from "@/components/SiteFooter";
 import { Course, CourseData, CurriculumRules } from "@/types";
 import { Settings2, Bot, BookOpen, ShieldCheck } from "lucide-react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut } from "@/lib/session-stub";
 import Link from "next/link";
 import ThemeToggle from "@/components/ThemeToggle";
 import Image from "next/image";

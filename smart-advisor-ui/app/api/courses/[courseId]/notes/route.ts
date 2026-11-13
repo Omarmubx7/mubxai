@@ -6,7 +6,7 @@ import { updateCourseNotesSchema } from "@/lib/schemas/api";
 import { validationErrorResponse } from "@/lib/validation";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ courseId: string }> }) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const studentId = session.user.student_id || session.user.email || 'unknown';
@@ -38,7 +38,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cour
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ courseId: string }> }) {
-  const session = await getServerSession(authOptions);
+  const session = await getServerSession();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const studentId = session.user.student_id || session.user.email || 'unknown';

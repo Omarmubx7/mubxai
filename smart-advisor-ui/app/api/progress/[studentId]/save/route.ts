@@ -10,7 +10,7 @@ export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ studentId: string }> }
 ) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     const { studentId: targetId } = await params;
 
     if (!targetId || targetId.length < 3) {

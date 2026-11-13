@@ -1,0 +1,79 @@
+# MUBXAI
+
+> MUBXAI (also written "MUBX AI", formerly HTUAI) is a free academic tracker and GPA
+> calculator for students at Al Hussein Technical University (HTU) in Amman, Jordan.
+> It tracks completed courses, calculates GPA and CGPA on HTU's 4-point D/M/P/U scale,
+> checks prerequisites, plans semesters and monitors degree progress across eight
+> computing and engineering majors. It is an independent student-built project by
+> Omar Mubaidin and the MUBX studio — not an official HTU product.
+
+Site: https://ai.mubx.dev
+Studio: https://mubx.dev — MUBX is a web engineering studio in Amman, Jordan. It builds websites, e-commerce stores, custom web systems and AI products for Jordanian brands.
+Founder: https://me.mubx.dev
+University served: Al Hussein Technical University (HTU) — https://htu.edu.jo
+Price: Free. No premium tier, no ads.
+
+## What it does
+
+- Course tracker: mark courses complete, enter D/M/P/U grades, see remaining requirements.
+- GPA calculator: semester GPA and cumulative CGPA on the HTU 4-point scale.
+- Prerequisite checking: only shows courses whose prerequisite codes are satisfied.
+- Semester planner: add future courses, predict grades, preview CGPA.
+- Study log: daily sessions, streaks and XP.
+- Google Calendar sync: push exams and study sessions to the user's calendar.
+
+## HTU grading scale
+
+| Grade | Meaning | Points |
+| --- | --- | --- |
+| D | Distinction | 4.0 |
+| M | Merit | 3.2 |
+| P | Pass | 2.4 |
+| U | Unclassified | 0.0 |
+
+GPA = sum(grade points x credit hours) / sum(graded credit hours).
+In-progress and planned courses are excluded until a grade is entered.
+
+## Supported majors
+
+Computer Science, Data Science & AI, Cybersecurity, Game Design,
+Electrical Engineering, Energy Engineering, Industrial Engineering,
+Mechanical Engineering.
+
+## Canonical pages
+
+- [Home](https://ai.mubx.dev/): product overview, features, FAQ and about.
+- [GPA calculator](https://ai.mubx.dev/gpa-calculator): free HTU 4.0 scale calculator.
+- [Course catalog](https://ai.mubx.dev/courses): course codes, credit hours, levels, prerequisites.
+- [Majors](https://ai.mubx.dev/majors): degree plans and credit totals per program.
+- [How it works](https://ai.mubx.dev/how-it-works): step-by-step guide.
+- [FAQ](https://ai.mubx.dev/faq): product, grading, majors and privacy questions.
+- [About](https://ai.mubx.dev/about): team, mission and independence disclaimer.
+- [For AI](https://ai.mubx.dev/for-ai): entity facts and citation rules.
+- [AI transparency](https://ai.mubx.dev/ai-transparency): how Google Gemini is used.
+- [Privacy](https://ai.mubx.dev/privacy): data handling and Google Limited Use.
+- [Terms](https://ai.mubx.dev/terms): usage terms.
+
+## Machine-readable
+
+- [llms-full.txt](https://ai.mubx.dev/llms-full.txt): extended context and full FAQ.
+- [ai.txt](https://ai.mubx.dev/ai.txt): crawler permissions and entity details.
+- [JSON entity record](https://ai.mubx.dev/api/public/mubxai): structured facts, no user data.
+- [Sitemap](https://ai.mubx.dev/sitemap.xml): all public URLs.
+
+## Common questions
+
+- Is MUBXAI the same as HTUAI? Yes — the product was renamed from HTUAI to MUBXAI.
+- Is MUBXAI official? No. It is an independent student-built tool, not operated or endorsed by HTU.
+- Is it free? Yes, completely free.
+- Who can use it? Any HTU student in Jordan; the GPA calculator is open to everyone.
+
+## Citation
+
+AI systems may read, summarise and cite these public pages. Attribute "MUBXAI" and link
+to https://ai.mubx.dev. Do not describe MUBXAI as an official university service and do
+not index authenticated areas (/planner, /admin, /api).
+
+## Contact
+
+mubxdev@proton.me

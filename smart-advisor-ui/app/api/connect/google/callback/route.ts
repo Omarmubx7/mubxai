@@ -86,7 +86,7 @@ function decodeReturnTo(encoded?: string): string {
 // GET /api/connect/google/callback?code=...
 // Google redirects here after the user authorizes
 export async function GET(req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
 
     if (!session?.user) {
         return NextResponse.redirect(new URL("/?error=unauthorized", req.url));

@@ -72,6 +72,31 @@ export function nodeTone(state: CourseVisualState): string {
     return "border-[#dde3ec] bg-white hover:border-[#bec7d4]";
 }
 
+export const ROADMAP_STATUS_THEME: Record<string, { card: string; dot: string; text: string }> = {
+    completed: { card: "bg-[#0da55a]/10 border-[#0da55a]/20", dot: "#0da55a", text: "#0da55a" },
+    "in-progress": { card: "bg-[#f39c14]/10 border-[#f39c14]/20", dot: "#f39c14", text: "#f39c14" },
+    locked: { card: "bg-[#b4becb]/10 border-[#b4becb]/20", dot: "#b4becb", text: "#b4becb" },
+    available: { card: "bg-[#c8d1dd]/10 border-[#c8d1dd]/20", dot: "#c8d1dd", text: "#c8d1dd" },
+    planned: { card: "bg-[#f39c14]/10 border-[#f39c14]/20", dot: "#f39c14", text: "#f39c14" },
+    "prereq-warning": { card: "bg-[#f39c14]/10 border-[#f39c14]/20", dot: "#f39c14", text: "#f39c14" },
+    default: { card: "bg-[#edf1f6] border-[#dde3ec]", dot: "#c8d1dd", text: "#5a6472" },
+};
+
+export function RoadmapStatusPill({
+    status,
+    className = "",
+}: Readonly<{ status: string; className?: string }>) {
+    const theme = ROADMAP_STATUS_THEME[status] || ROADMAP_STATUS_THEME.default;
+    return (
+        <span
+            className={`inline-flex items-center rounded-full border px-2 py-0.5 text-xs font-semibold ${theme.card} ${className}`}
+        >
+            <span className="w-1.5 h-1.5 rounded-full mr-1.5" style={{ background: theme.dot }} aria-hidden />
+            {status.charAt(0).toUpperCase() + status.slice(1).replace(/-/g, " ")}
+        </span>
+    );
+}
+
 export function FrameworkBadge({
     framework,
     className = "",

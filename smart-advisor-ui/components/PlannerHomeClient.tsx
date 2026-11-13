@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, memo, useCallback, useRef } from "react";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut } from "@/lib/session-stub";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { BookOpen, Trophy, Calendar, Sparkles, ChevronRight, LayoutDashboard, Target, ArrowRight, RefreshCcw, ExternalLink, Bell, AlertTriangle, TrendingUp, Settings, Plus, Flame, Clock, HelpCircle, Brain, Search, CalendarDays, Bot } from "lucide-react";

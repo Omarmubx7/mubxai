@@ -123,7 +123,7 @@ function getCompletedEntryGrade(entry: unknown): string {
 
 
 export async function GET(_req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const baseUser = await resolveAuthenticatedUser(session);

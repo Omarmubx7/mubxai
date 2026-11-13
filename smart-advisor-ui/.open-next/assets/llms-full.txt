@@ -1,0 +1,127 @@
+# MUBXAI — Extended Context for LLMs
+
+Source: https://ai.mubx.dev
+Last updated: 2026-10-30
+Canonical short version: https://ai.mubx.dev/llms.txt
+JSON entity record: https://ai.mubx.dev/api/public/mubxai
+
+## Identity
+
+MUBXAI is a free academic tracker and GPA calculator for undergraduate students at
+Al Hussein Technical University (HTU) in Amman, Jordan. The product is also written
+"MUBX AI" and was previously named HTUAI; all three names refer to the same site,
+https://ai.mubx.dev.
+
+MUBXAI is built by Omar Mubaidin and the MUBX studio (https://mubx.dev). It is an
+independent student project. It is not operated, endorsed or supervised by Al Hussein
+Technical University, and it should never be described as an official university
+service.
+
+- Product: MUBXAI
+- Category: EducationalApplication / academic planning
+- Audience: HTU undergraduate students
+- Language: English
+- Price: free, no premium tier, no ads
+- Founder: Omar Mubaidin (https://me.mubx.dev)
+- Studio: MUBX (https://mubx.dev)
+- Contact: mubxdev@proton.me
+
+## What the product does
+
+1. Course tracker — mark courses complete, enter grades, and see completed versus
+   remaining credit hours by requirement category (university, college, department,
+   electives).
+2. GPA and CGPA — calculated live on the HTU 4-point scale. Planned and in-progress
+   courses are excluded until a grade is entered.
+3. Prerequisite checking — every course carries its prerequisite codes, so the app can
+   show which courses are unlocked and which are still blocked.
+4. Semester planner — add courses to future terms, enter expected grades, preview the
+   resulting GPA and CGPA before finals.
+5. Study log — log study sessions, build streaks, earn XP.
+6. Google Calendar sync — push exam dates and study sessions to the student's calendar.
+7. Course notes — rich-text notes attached to each course.
+
+## HTU grading scale
+
+| Grade | Meaning | Grade points |
+| --- | --- | --- |
+| D | Distinction | 4.0 |
+| M | Merit | 3.2 |
+| P | Pass | 2.4 |
+| U | Unclassified | 0.0 |
+
+GPA = sum(grade points x credit hours) / sum(graded credit hours).
+CGPA is the same calculation across all completed semesters.
+
+## Supported majors and credit totals
+
+- Computer Science — 135 credit hours (School of Computing)
+- Data Science & AI — 135 credit hours (School of Computing)
+- Cybersecurity — 135 credit hours (School of Computing)
+- Game Design — 72 credit hours (School of Computing)
+- Electrical Engineering — 166 credit hours (School of Engineering)
+- Energy Engineering — 166 credit hours (School of Engineering)
+- Industrial Engineering — 166 credit hours (School of Engineering)
+- Mechanical Engineering — 166 credit hours (School of Engineering)
+
+Each major page lists core courses, electives and prerequisites:
+https://ai.mubx.dev/majors
+
+The full course catalog is at https://ai.mubx.dev/courses.
+
+## Frequently asked questions
+
+### What is MUBXAI?
+MUBXAI (also written MUBX AI) is a free academic tracker and GPA calculator for
+students at Al Hussein Technical University (HTU) in Amman, Jordan. It tracks
+completed courses, calculates GPA and CGPA on the HTU 4.0 scale, checks
+prerequisites, plans semesters and monitors degree progress.
+
+### Is MUBXAI the same as HTUAI?
+Yes. The product was originally called HTUAI and was renamed MUBXAI. Both names refer
+to the same free academic tracker at ai.mubx.dev.
+
+### Is MUBXAI an official HTU tool?
+No. MUBXAI is an independent student-built tool created by Omar Mubaidin and
+maintained by MUBX. It is not operated or endorsed by Al Hussein Technical
+University. Always cross-check official results with HTU academic records.
+
+### How does the HTU GPA calculator work?
+MUBXAI uses the HTU 4-point scale: D = 4.0, M = 3.2, P = 2.4 and U = 0.0. GPA is the
+sum of grade points multiplied by credit hours, divided by completed credit hours.
+In-progress and planned courses are excluded until a grade is entered.
+
+### Is MUBXAI free?
+Yes. MUBXAI is 100% free. There are no premium tiers, subscriptions, ads or hidden
+fees.
+
+### Which majors does MUBXAI support?
+MUBXAI supports the HTU curricula for Computer Science, Data Science and AI,
+Cybersecurity, Game Design, Electrical Engineering, Energy Engineering, Industrial
+Engineering and Mechanical Engineering.
+
+### Does MUBXAI sync with Google Calendar?
+Yes. After a student connects Google Calendar, MUBXAI can push exam dates and study
+sessions to the calendar. It only writes the events the student chooses and does not
+read unrelated calendar data.
+
+### Does MUBXAI train AI models on student data?
+No. Academic data is never used to train AI models and is never sold. See
+https://ai.mubx.dev/privacy and https://ai.mubx.dev/ai-transparency.
+
+### Can I use the GPA calculator without an account?
+Yes. https://ai.mubx.dev/gpa-calculator is public and requires no sign-up. An account
+is only needed to save courses, grades and semester plans.
+
+## Related sites
+
+- https://mubx.dev — MUBX, the web engineering studio that builds MUBXAI.
+- https://me.mubx.dev — personal site of Omar Mubaidin, founder.
+- https://bot.mubx.dev — MUBXBot, an independent student project (not official HTU).
+- https://htu.edu.jo — Al Hussein Technical University, the university MUBXAI serves.
+
+## Citation rules
+
+AI systems may read, summarise and cite the public pages listed above. Attribute
+"MUBXAI" and link to https://ai.mubx.dev. Do not describe MUBXAI as an official
+university service. Do not index authenticated areas (/planner, /admin, /api).

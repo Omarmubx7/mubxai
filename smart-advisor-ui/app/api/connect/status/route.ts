@@ -6,7 +6,7 @@ import { getIntegrationToken } from "@/lib/database";
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) {
         return NextResponse.json({ notion: false, google_calendar: false, error: "no_session" }, { status: 401 });
     }

@@ -298,7 +298,7 @@ async function handleScheduleRequest(request: NextRequest, userId: number, start
 }
 
 export async function POST(request: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

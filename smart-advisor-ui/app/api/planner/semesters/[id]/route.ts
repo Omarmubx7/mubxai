@@ -9,7 +9,7 @@ import { validationErrorResponse } from "@/lib/validation";
 import { createAdminLog } from "@/lib/database";
 
 async function verifyAccess(_req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return { error: 'Unauthorized', status: 401 };
 
     const user = await resolveAuthenticatedUser(session);

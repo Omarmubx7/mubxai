@@ -18,7 +18,7 @@ const studySessionSchema = z.object({
 });
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
@@ -121,7 +121,7 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {

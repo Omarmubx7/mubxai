@@ -1,5 +1,6 @@
 
-import type { NextAuthOptions, DefaultSession } from "next-auth";
+import type { AuthOptions } from "next-auth";
+import type { DefaultSession } from "next-auth";
 import type { DefaultJWT } from "next-auth/jwt";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -65,7 +66,7 @@ declare module "next-auth/jwt" {
     }
 }
 
-export const authOptions: NextAuthOptions = {
+export const authOptions: AuthOptions = {
     providers: [
         GoogleProvider({
             clientId: googleClientId,

@@ -10,7 +10,7 @@ export async function GET(
     _req: NextRequest,
     { params }: { params: Promise<{ studentId: string }> }
 ) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     const { studentId: targetId } = await params;
 
     if (!targetId) return NextResponse.json({ error: 'Missing ID' }, { status: 400 });

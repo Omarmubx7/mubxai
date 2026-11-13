@@ -5,7 +5,7 @@ import { prisma } from "@/lib/prisma";
 import { resolveAuthenticatedUser } from "@/lib/resolve-user";
 
 export async function DELETE(_req: NextRequest) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {

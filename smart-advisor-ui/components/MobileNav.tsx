@@ -5,7 +5,7 @@ import { motion } from "framer-motion";
 import { Home, CalendarDays, Settings2, LogOut, Bot, BookOpen } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
+import { useSession, signOut } from "@/lib/session-stub";
 
 const NAV_ITEMS = [
     { label: "Tracker", icon: Home, href: "/" },

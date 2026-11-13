@@ -347,7 +347,7 @@ function buildSyncStatusMessage(
 }
 
 export async function POST() {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userId = session.user.db_id;

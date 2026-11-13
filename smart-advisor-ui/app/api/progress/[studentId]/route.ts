@@ -9,7 +9,7 @@ export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ studentId: string }> }
 ) {
-    const session = await getServerSession(authOptions);
+    const session = await getServerSession();
     const { studentId: targetId } = await params;
     const major = request.nextUrl.searchParams.get('major') ?? 'default';
 
