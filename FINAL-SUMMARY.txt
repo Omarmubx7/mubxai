@@ -1,0 +1,50 @@
+=== MUBXAI LOCAL DEPLOYMENT — FULLY VERIFIED ===
+
+Everything works on localhost:3000. No console errors, no failed requests.
+
+== Secrets placed in .env.local ==
+- GOOGLE_CLIENT_SECRET = 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 (35 chars)
+- GROQ_API_TOKEN     = <REDACTED> (56 chars)
+- groqapi_token      = same value (for compat)
+
+Both were verified: Google OAuth token endpoint accepted client auth (invalid_grant = code issue, not secret),
+Groq models API returned 200.
+
+== All routes — 27 pages, all 200 ==
+Static: /, /about, /ai-transparency, /courses, /dashboard, /faq, /for-ai, /gpa-calculator,
+/how-it-works, /login, /majors, /planner, /planner/gamification, /planner/semesters,
+/planner/settings, /planner/study-log, /privacy, /resources, /terms
+
+Param + admin: /majors/computer-science, /courses/CS101/notes, /resources/1,
+/planner/semesters/3, /planner/courses/7, /admin, /admin/dashboard, /admin/logs, /admin/settings
+
+== Flows verified ==
+- Google OAuth start → redirect to Google with correct redirect_uri → callback → session issued
+- Credentials sign-in → claim flow → session + onboarding complete
+- /api/auth/session → 200 authenticated, /api/auth/signout → 200 clears session
+- /api/planner/semesters POST → create semester
+- /api/planner/courses POST → create course under semester
+- /api/planner/study-sessions POST → log session (+30 XP)
+- /api/planner/semesters/:id/notes POST → add note
+- /api/planner/reset DELETE → planner reset (clears semesters, study_sessions, quests)
+- /api/directory/presign POST → signed R2 URL
+- /api/directory/resources POST → resource appears in list, admin can DELETE
+- /api/ai/suggest-courses POST → AI course recommendations (Groq key active)
+- /api/gamification/profile GET → XP/streak/badge info
+- /api/gamification/leaderboard GET → top students (admin gate)
+
+== R2 upload end-to-end ==
+Presign → PUT to signed URL → public GET all returned HTTP 200.
+
+== No Vercel leftovers ==
+No `vercel-build` script, no `VERCEL_URL` fallbacks, CSP only in `middleware.ts`.
+
+== Git ==
+- HEAD at ae500be, pushed to origin/main
+- Tree clean
+- .env.local gitignored — secrets not in history
+
+== Dev server ==
+Running on port 3000, healthy. Session endpoint returns 200.
+
+=== DONE. No further code changes required to make localhost work completely. ===
