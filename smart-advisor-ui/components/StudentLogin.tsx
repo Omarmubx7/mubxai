@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Lock, User, AlertCircle } from "lucide-react";
-import { signIn } from "../lib/session-stub.ts";
+import { signIn } from "./session-stub";
 import Image from "next/image";
 
 /**
