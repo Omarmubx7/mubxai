@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { getCourseNotes, saveCourseNotes, initDB, createAdminLog } from "@/lib/database";
 import { updateCourseNotesSchema } from "@/lib/schemas/api";
 import { validationErrorResponse } from "@/lib/validation";
 
 export async function GET(req: NextRequest, { params }: { params: Promise<{ courseId: string }> }) {
-  const session = await getServerSession();
+  const session = await getSession();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const studentId = session.user.student_id || session.user.email || 'unknown';
@@ -38,7 +37,7 @@ export async function GET(req: NextRequest, { params }: { params: Promise<{ cour
 }
 
 export async function POST(req: NextRequest, { params }: { params: Promise<{ courseId: string }> }) {
-  const session = await getServerSession();
+  const session = await getSession();
   if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const studentId = session.user.student_id || session.user.email || 'unknown';

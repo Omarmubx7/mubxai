@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import PlannerStudyLogClient from "@/components/PlannerStudyLogClient";
 
 export const metadata: Metadata = {
@@ -13,7 +12,7 @@ export const metadata: Metadata = {
     robots: { index: false, follow: true },
 };
 export default async function PlannerStudyLogPage() {
-    const session = await getServerSession(authOptions);
+    const session = await getSession();
     if (!session) {
         redirect("/");
     }

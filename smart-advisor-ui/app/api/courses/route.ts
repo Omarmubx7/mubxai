@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import path from "node:path";
 import fs from "node:fs/promises";
 
 export async function GET() {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const dataDir = path.join(process.cwd(), "public/data");

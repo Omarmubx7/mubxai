@@ -1,7 +1,7 @@
 "use client";
 
 import { usePathname, useRouter } from "next/navigation";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session-stub";
 import { ChevronLeft } from "lucide-react";
 
 interface MobileHeaderProps {

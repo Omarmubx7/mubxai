@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Search, Upload, BookOpen, Loader2, ArrowLeft, ChevronDown } from "lucide-react";
 import Link from "next/link";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session-stub";
 import { useToast } from "@/components/ui/Toast";
 import ResourceFilters from "./ResourceFilters";
 import ResourceCard from "./ResourceCard";

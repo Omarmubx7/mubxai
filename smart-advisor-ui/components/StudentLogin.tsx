@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Lock, User, AlertCircle } from "lucide-react";
 import { signIn } from "./session-stub";
@@ -17,12 +17,46 @@ function getCallbackUrl(): string {
     return cb && cb.startsWith("/") && !cb.startsWith("//") ? cb : "/";
 }
 
+/**
+ * Human-readable messages for the `?error=` codes emitted by
+ * `/api/auth/google` and `/api/auth/google/callback`.
+ */
+const OAUTH_ERRORS: Record<string, string> = {
+    google_denied: "Google sign-in was cancelled.",
+    google_no_code: "Google did not return an authorisation code. Please try again.",
+    google_state_mismatch: "Your sign-in session expired. Please try again.",
+    google_token_exchange:
+        "Google rejected the sign-in attempt. The site's Google OAuth credentials are misconfigured.",
+    google_userinfo: "Google did not share your profile. Please try again.",
+    google_no_email: "Your Google account does not expose an email address.",
+    google_email_unverified: "Your Google email address is not verified.",
+    google_not_configured: "Google sign-in is not configured on this server.",
+    google_callback: "Something went wrong while signing you in with Google.",
+    account_banned: "This account has been suspended.",
+};
+
 export default function StudentLogin() {
     const [id, setId] = useState("");
     const [password, setPassword] = useState("");
     const [error, setError] = useState("");
     const [isClaiming, setIsClaiming] = useState(false);
     const [loading, setLoading] = useState(false);
+
+    // Surface OAuth failures instead of silently returning to a blank form.
+    useEffect(() => {
+        const params = new URLSearchParams(window.location.search);
+        const code = params.get("error");
+        if (!code) return;
+
+        const detail = params.get("detail");
+        const message = OAUTH_ERRORS[code] ?? "Sign-in failed. Please try again.";
+        setError(detail ? `${message} (${detail})` : message);
+
+        // Remove the error from the URL so refreshing does not repeat it.
+        const cb = getCallbackUrl();
+        const clean = cb === "/" ? window.location.pathname : `${window.location.pathname}?callbackUrl=${encodeURIComponent(cb)}`;
+        window.history.replaceState({}, "", clean);
+    }, []);
 
     const handleSubmit = (e: { preventDefault: () => void }) => {
         e.preventDefault();
@@ -49,11 +83,14 @@ export default function StudentLogin() {
                 });
 
                 if (result?.error) {
-                    setError(isClaiming ? "Account already exists or invalid data." : "Invalid ID or password.");
+                    setError(
+                        result.error === "Invalid credentials"
+                            ? "Invalid ID or password."
+                            : result.error
+                    );
                 } else {
                     // Hard navigate so the SessionProvider re-reads the new auth cookie.
-                    // router.refresh() does NOT update useSession() status — only a full
-                    // page reload causes next-auth to re-fetch /api/auth/session properly.
+                    // router.refresh() does not re-run the client session fetch.
                     window.location.href = getCallbackUrl();
                     return; // leave loading=true (we're navigating away anyway)
                 }
@@ -222,7 +259,7 @@ export default function StudentLogin() {
                         <p className="text-center mt-2">
                             <button
                                 type="button"
-                                onClick={() => { setIsClaiming(!isClaiming); setId(""); setPassword(""); setError(""); }}
+                                onClick={() => { setIsClaiming(!isClaiming); setError(""); }}
                                 className="text-[11px] sm:text-xs uppercase tracking-wider font-bold text-[#c249a8] hover:text-[#a83692] transition-colors focus:outline-none focus:ring-1 focus:ring-[#c249a8]/40 rounded px-3 py-2 sm:px-2 sm:py-0.5"
                             >
                                 {isClaiming

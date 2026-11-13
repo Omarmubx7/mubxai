@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { Session } from "next-auth";
+import type { AppSession as Session } from "@/lib/session";
 
 /**
  * Centrally resolves the authenticated user from the session.

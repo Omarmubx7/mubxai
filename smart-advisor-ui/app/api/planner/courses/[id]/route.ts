@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { prisma } from "@/lib/prisma";
 import { createAdminLog } from "@/lib/database";
 import { resolveAuthenticatedUser } from "@/lib/resolve-user";
@@ -8,7 +7,7 @@ import { updateCourseSchema } from "@/lib/schemas/api";
 import { validationErrorResponse } from "@/lib/validation";
 
 async function verifyAccess(_req: NextRequest) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) return { error: 'Unauthorized', status: 401 };
 
     const user = await resolveAuthenticatedUser(session);

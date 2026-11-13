@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { jsonResponse } from "@/lib/json-response";
 import { prisma } from "@/lib/prisma";
 import { createAdminLog } from "@/lib/database";
@@ -50,7 +49,7 @@ async function saveSemester(userId: number, payload: {
 }
 
 export async function GET(req: NextRequest) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {
@@ -74,7 +73,7 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     try {

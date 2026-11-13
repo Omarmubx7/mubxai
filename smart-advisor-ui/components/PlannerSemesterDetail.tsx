@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback, memo, useRef } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session-stub";
 import { useRouter } from "next/navigation";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowLeft, BookOpen, Plus, MapPin, User, Save, ArrowRight, Search, Calendar as CalendarIcon, Edit2, Trash2, FileText, ChevronRight, Settings2, HelpCircle } from "lucide-react";

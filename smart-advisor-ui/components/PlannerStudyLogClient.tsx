@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session-stub";
 import { useRouter } from "next/navigation";
 import { BookOpen, Clock, TrendingUp, Calendar as CalendarIcon, PlayCircle, Settings } from "lucide-react";
 import Link from "next/link";

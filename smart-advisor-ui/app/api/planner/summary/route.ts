@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { prisma } from "@/lib/prisma";
 import { resolveAuthenticatedUser } from "@/lib/resolve-user";
 import { evaluateAchievements } from "@/lib/gamification";
@@ -123,7 +122,7 @@ function getCompletedEntryGrade(entry: unknown): string {
 
 
 export async function GET(_req: NextRequest) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const baseUser = await resolveAuthenticatedUser(session);

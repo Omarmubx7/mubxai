@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { getBaseUrl } from "@/lib/env";
+import { encodeBase64UrlText, randomUrlSafeToken } from "@/lib/base64url";
 
-// GET /api/integrations/google-calendar — Generates an OAuth url to connect Calendar
+// GET /api/integrations/google-calendar - Generates an OAuth url to connect Calendar
 export async function GET(req: NextRequest): Promise<Response> {
-    const session = await getServerSession();
+    const session = await getSession();
 
     if (!session?.user) {
         return NextResponse.redirect(new URL("/?error=unauthorized", req.url));
@@ -19,12 +19,10 @@ export async function GET(req: NextRequest): Promise<Response> {
         return NextResponse.redirect(new URL("/?error=google_not_configured", req.url));
     }
 
-    // Generate secure state parameter to prevent CSRF using Web Crypto API
-    const array = new Uint8Array(32);
-    crypto.getRandomValues(array);
-    const state = btoa(String.fromCodePoint(...array)).replaceAll(/[=+/]/g, "").toLowerCase();
-    const returnToEncoded = Buffer.from(returnTo).toString("base64url");
-    const stateValue = `${state}.${returnToEncoded}`;
+    // State is `<random>.<returnTo>`; the random half is echoed in a cookie and
+    // compared in the callback. Both halves are URL-safe base64.
+    const state = randomUrlSafeToken(32).toLowerCase();
+    const stateValue = `${state}.${encodeBase64UrlText(returnTo)}`;
 
     // Append scopes
     const url = new URL("https://accounts.google.com/o/oauth2/v2/auth");
@@ -44,6 +42,17 @@ export async function GET(req: NextRequest): Promise<Response> {
         secure: process.env.NODE_ENV === "production",
         sameSite: "lax",
         maxAge: 600, // 10 minutes
+        path: "/"
+    });
+
+    // Pin the exact redirect URI so the token exchange sends Google the same
+    // value that was used to authorise, even behind a proxy that rewrites
+    // forwarded headers.
+    response.cookies.set("oauth_redirect_uri", redirectUri, {
+        httpOnly: true,
+        secure: process.env.NODE_ENV === "production",
+        sameSite: "lax",
+        maxAge: 600,
         path: "/"
     });
 

@@ -1,169 +1,76 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-const GOOGLE_CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
-const GOOGLE_CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
-const NEXTAUTH_SECRET = process.env.NEXTAUTH_SECRET!;
-const NEXTAUTH_URL = process.env.NEXTAUTH_URL!;
+export const dynamic = "force-dynamic";
 
 const SCOPES = ["openid", "email", "profile"].join(" ");
 
-export const dynamic = "force-dynamic";
-
-function setCookie(
-  res: NextResponse,
-  name: string,
-  value: string,
-  maxAge: number,
-  opts?: Record<string, unknown>
-) {
-  res.cookies.set(name, value, {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge,
-    ...opts,
-  });
+/** Public origin of this request, honouring Cloudflare's proxy headers. */
+function requestOrigin(req: NextRequest): string {
+    const url = new URL(req.url);
+    const proto =
+        req.headers.get("x-forwarded-proto")?.split(",")[0].trim() ||
+        url.protocol.replace(":", "");
+    const host =
+        req.headers.get("x-forwarded-host")?.split(",")[0].trim() ||
+        req.headers.get("host") ||
+        url.host;
+    return `${proto}://${host}`;
 }
 
-function setSessionCookie(res: NextResponse, value: string, maxAge: number) {
-  setCookie(res, "mubxai_session", value, maxAge);
+function safeRelativePath(value: string | null): string {
+    if (!value || !value.startsWith("/") || value.startsWith("//")) return "/";
+    return value;
 }
 
-function clearSessionCookie(res: NextResponse) {
-  res.cookies.set("mubxai_session", "", {
-    httpOnly: true,
-    secure: true,
-    sameSite: "lax",
-    path: "/",
-    maxAge: 0,
-  });
-}
-
-async function signSession(payload: string): Promise<string> {
-  const encoder = new TextEncoder();
-  const keyData = encoder.encode(NEXTAUTH_SECRET);
-  const key = await crypto.subtle.importKey(
-    "raw",
-    keyData,
-    { name: "HMAC", hash: "SHA-256" },
-    false,
-    ["sign"]
-  );
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(payload));
-  const sigHex = Array.from(new Uint8Array(signature))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return Buffer.from(`${payload}.${sigHex}`).toString("base64url");
-}
-
-import { verifySession } from "@/lib/auth-session";
-
+/**
+ * GET /api/auth/google?callbackUrl=/dashboard
+ *
+ * Starts the Google OAuth flow. The redirect URI is derived from the incoming
+ * request (so localhost and production both work) and is pinned in a cookie so
+ * that the token exchange sends the exact same value back to Google.
+ */
 export async function GET(req: NextRequest) {
-  const { searchParams, origin } = new URL(req.url);
-  const callbackUrl = searchParams.get("callbackUrl") || "/";
-  const action = searchParams.get("action"); // "start" | "callback"
+    const { searchParams } = new URL(req.url);
+    const origin = requestOrigin(req);
+    const secure = origin.startsWith("https://");
 
-  // ---- START: redirect user to Google ----
-  if (action !== "callback") {
+    const loginError = (code: string) =>
+        NextResponse.redirect(new URL(`/login?error=${code}`, origin));
+
+    const clientId = process.env.GOOGLE_CLIENT_ID?.trim();
+    if (!clientId) {
+        console.error("[google-auth] GOOGLE_CLIENT_ID is not configured");
+        return loginError("google_not_configured");
+    }
+
+    const callbackUrl = safeRelativePath(searchParams.get("callbackUrl"));
+    const redirectUri = `${origin}/api/auth/google/callback`;
     const state = crypto.randomUUID();
-    const res = NextResponse.redirect(
-      `https://accounts.google.com/o/oauth2/v2/auth?${new URLSearchParams({
-        client_id: GOOGLE_CLIENT_ID,
-        redirect_uri: `${NEXTAUTH_URL}/api/auth/google?action=callback`,
+
+    const authUrl = new URL("https://accounts.google.com/o/oauth2/v2/auth");
+    authUrl.search = new URLSearchParams({
+        client_id: clientId,
+        redirect_uri: redirectUri,
         response_type: "code",
         scope: SCOPES,
         state,
-        access_type: "offline",
-        prompt: "consent",
-      })}`
-    );
-    setCookie(res, "google_oauth_state", state, 10 * 60);
-    // Also store callbackUrl so we can redirect after auth
-    setCookie(res, "google_oauth_cb", callbackUrl, 10 * 60);
+        access_type: "online",
+        include_granted_scopes: "true",
+        prompt: "select_account",
+    }).toString();
+
+    const res = NextResponse.redirect(authUrl);
+    const cookieOptions = {
+        httpOnly: true,
+        secure,
+        sameSite: "lax" as const,
+        path: "/",
+        maxAge: 10 * 60,
+    };
+
+    res.cookies.set("google_oauth_state", state, cookieOptions);
+    res.cookies.set("google_oauth_cb", callbackUrl, cookieOptions);
+    res.cookies.set("google_oauth_redirect", redirectUri, cookieOptions);
+
     return res;
-  }
-
-  // ---- CALLBACK: Google redirects back ----
-  const code = searchParams.get("code");
-  const state = searchParams.get("state");
-  const error = searchParams.get("error");
-
-  if (error) {
-    return NextResponse.redirect(`${origin}/login?error=google_denied`);
-  }
-  if (!code || !state) {
-    return NextResponse.redirect(`${origin}/login?error=google_no_code`);
-  }
-
-  // Verify state cookie (CSRF protection)
-  const stateCookie = req.cookies.get("google_oauth_state")?.value;
-  if (!stateCookie || stateCookie !== state) {
-    return NextResponse.redirect(`${origin}/login?error=google_state_mismatch`);
-  }
-
-  const cbCookie = req.cookies.get("google_oauth_cb")?.value || "/";
-
-  try {
-    // 1. Exchange authorization code for access token
-    const tokenRes = await fetch("https://oauth2.googleapis.com/token", {
-      method: "POST",
-      headers: { "Content-Type": "application/x-www-form-urlencoded" },
-      body: new URLSearchParams({
-        client_id: GOOGLE_CLIENT_ID,
-        client_secret: GOOGLE_CLIENT_SECRET,
-        code,
-        grant_type: "authorization_code",
-        redirect_uri: `${NEXTAUTH_URL}/api/auth/google?action=callback`,
-      }),
-    });
-
-    if (!tokenRes.ok) {
-      console.error("Google token exchange failed:", await tokenRes.text());
-      return NextResponse.redirect(`${origin}/login?error=google_token_exchange`);
-    }
-
-    const tokens = await tokenRes.json();
-    const accessToken = tokens.access_token as string;
-
-    // 2. Fetch user profile from Google
-    const userRes = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
-      headers: { Authorization: `Bearer ${accessToken}` },
-      cache: "no-store",
-    });
-
-    if (!userRes.ok) {
-      return NextResponse.redirect(`${origin}/login?error=google_userinfo`);
-    }
-
-    const user = await userRes.json();
-
-    // 3. Create signed session
-    const sessionPayload = JSON.stringify({
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        image: user.picture,
-        provider: "google",
-      },
-      expires: Date.now() + 7 * 24 * 60 * 60 * 1000, // 7 days
-    });
-
-    const sessionValue = await signSession(sessionPayload);
-
-    // 4. Redirect back to app with session cookie set
-    const res = NextResponse.redirect(cbCookie);
-    setSessionCookie(res, sessionValue, 7 * 24 * 60 * 60);
-    res.cookies.delete("google_oauth_state");
-    res.cookies.delete("google_oauth_cb");
-    return res;
-  } catch (err) {
-    console.error("Google callback error:", err);
-    return NextResponse.redirect(`${origin}/login?error=google_callback`);
-  }
-}
-
-export async function POST() {
-  return NextResponse.json({ error: "Method not allowed" }, { status: 405 });
 }

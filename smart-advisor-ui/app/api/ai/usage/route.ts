@@ -1,11 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getServerSession } from 'next-auth/next';
-import { authOptions } from '@/auth';
+import { getSession } from "@/lib/session-server";
 import { resolveAuthenticatedUser } from '@/lib/resolve-user';
 import { checkDailyAiUsageLimit } from '@/lib/ai-usage-limit';
 
 export async function GET(request: NextRequest) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
 
     const user = await resolveAuthenticatedUser(session);

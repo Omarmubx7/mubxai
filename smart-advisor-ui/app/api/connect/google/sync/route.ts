@@ -1,6 +1,5 @@
 import { NextResponse } from 'next/server';
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { getIntegrationToken } from "@/lib/database";
 import { prisma } from "@/lib/prisma";
 
@@ -347,7 +346,7 @@ function buildSyncStatusMessage(
 }
 
 export async function POST() {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const userId = session.user.db_id;

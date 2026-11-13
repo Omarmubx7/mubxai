@@ -1,12 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { getIntegrationToken } from "@/lib/database";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(_req: NextRequest) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) {
         return NextResponse.json({ notion: false, google_calendar: false, error: "no_session" }, { status: 401 });
     }

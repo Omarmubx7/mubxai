@@ -8,7 +8,6 @@ import MobileNav from "@/components/MobileNav";
 import MobileHeader from "@/components/MobileHeader";
 import MaintenanceBanner from "@/components/MaintenanceBanner";
 import ThemeProvider from "@/components/ThemeProvider";
-import { NonceScript } from "@/components/NonceScript";
 import {
   SITE_URL,
   SITE_NAME,
@@ -121,7 +120,6 @@ export default async function RootLayout({
         <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM context" />
         <link rel="alternate" type="text/plain" href="/llms-full.txt" title="LLM extended context" />
         <link rel="alternate" type="text/plain" href="/ai.txt" title="AI permissions" />
-        <NonceScript />
       </head>
       <body className={`${inter.variable} font-sans min-h-screen flex flex-col`} suppressHydrationWarning>
         <ThemeProvider>

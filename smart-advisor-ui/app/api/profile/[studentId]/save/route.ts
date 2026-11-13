@@ -2,15 +2,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { saveMajor, logVisitor, createAdminLog } from '@/lib/database';
 import { getClientInfo } from '@/lib/client-info';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { resolveAuthenticatedUser } from "@/lib/resolve-user";
 
 export async function POST(
     request: NextRequest,
     { params }: { params: Promise<{ studentId: string }> }
 ) {
-    const session = await getServerSession();
+    const session = await getSession();
     const { studentId: targetId } = await params;
 
     if (!targetId) return NextResponse.json({ error: 'Missing ID' }, { status: 400 });

@@ -1,8 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getSession } from "@/lib/session-server";
 import path from "node:path";
 import fs from "node:fs/promises";
-import { authOptions } from "@/auth";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { resolveAuthenticatedUser } from "@/lib/resolve-user";
@@ -74,7 +73,7 @@ export async function GET(req: Request) {
     const courseCode = searchParams.get("course_code") || searchParams.get("courseCode");
     const majorKey = searchParams.get("major");
 
-    const session = await getServerSession();
+    const session = await getSession();
     const user = session?.user ? await resolveAuthenticatedUser(session) : null;
 
     try {
@@ -145,7 +144,7 @@ export async function GET(req: Request) {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

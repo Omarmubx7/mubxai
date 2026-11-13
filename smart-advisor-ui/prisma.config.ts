@@ -1,8 +1,9 @@
 import { defineConfig } from "prisma/config";
 import { buildLocalPostgresUrl } from "./lib/postgres-url";
 
-// Only override DB URLs for local dev — on Vercel/Cloudflare, env vars already point to Neon
-const isProduction = process.env.VERCEL || process.env.CF_PAGES || process.env.DATABASE_URL || process.env.CF_PAGES_BRANCH;
+// Only override DB URLs for local dev — on Cloudflare, DATABASE_URL already
+// points at the production Neon database.
+const isProduction = process.env.DATABASE_URL || process.env.CF_PAGES_BRANCH;
 if (!isProduction) {
   const localPostgresUrl = buildLocalPostgresUrl();
   process.env.POSTGRES_PRISMA_URL = localPostgresUrl;

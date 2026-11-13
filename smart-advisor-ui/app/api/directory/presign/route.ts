@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { PutObjectCommand } from "@aws-sdk/client-s3";
 import { getSignedUrl } from "@aws-sdk/s3-request-presigner";
 import { getR2Client, R2_BUCKET_NAME, R2_PUBLIC_URL } from "@/lib/r2";
@@ -17,7 +16,7 @@ function generateKey(filename: string): string {
 }
 
 export async function POST(req: Request) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) {
         return NextResponse.json({ error: "You must be signed in to upload files." }, { status: 401 });
     }

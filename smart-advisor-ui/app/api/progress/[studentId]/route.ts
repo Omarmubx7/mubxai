@@ -1,15 +1,14 @@
 
 import { NextRequest, NextResponse } from 'next/server';
 import { loadProgress } from '@/lib/database';
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { resolveAuthenticatedUser } from "@/lib/resolve-user";
 
 export async function GET(
     request: NextRequest,
     { params }: { params: Promise<{ studentId: string }> }
 ) {
-    const session = await getServerSession();
+    const session = await getSession();
     const { studentId: targetId } = await params;
     const major = request.nextUrl.searchParams.get('major') ?? 'default';
 

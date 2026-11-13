@@ -69,10 +69,6 @@ const nextConfig: NextConfig = {
         source: '/:path*',
         headers: [
           {
-            key: 'Content-Security-Policy',
-            value: "default-src 'self' blob: data:; script-src 'self' 'unsafe-inline' 'unsafe-eval' https://assets.calendly.com https://*.framer.com https://*.framerusercontent.com https://accounts.google.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://assets.calendly.com; img-src 'self' blob: data: https://assets.calendly.com https://*.framer.com https://*.framerusercontent.com; font-src 'self' data: https://fonts.googleapis.com https://fonts.gstatic.com; connect-src 'self' https://*.supabase.co https://api.google.com https://oauth2.googleapis.com https://www.googleapis.com https://accounts.google.com wss:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'; frame-src https://calendly.com https://accounts.google.com;"
-          },
-          {
             key: 'X-Content-Type-Options',
             value: 'nosniff'
           },

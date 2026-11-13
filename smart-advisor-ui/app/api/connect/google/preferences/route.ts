@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { resolveAuthenticatedUser } from "@/lib/resolve-user";
 import { prisma } from "@/lib/prisma";
 import { z } from "zod";
 import { validationErrorResponse } from "@/lib/validation";
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     const user = await resolveAuthenticatedUser(session);

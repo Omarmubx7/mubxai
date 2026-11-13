@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { prisma } from "@/lib/prisma";
 import { createAdminLog } from "@/lib/database";
 import { resolveAuthenticatedUser } from "@/lib/resolve-user";
@@ -9,7 +8,7 @@ import { validationErrorResponse } from "@/lib/validation";
 import { jsonResponse } from "@/lib/json-response";
 
 export async function POST(req: NextRequest) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
     try {

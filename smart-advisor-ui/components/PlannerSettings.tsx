@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session-stub";
 import { useRouter, useSearchParams } from "next/navigation";
 import { ArrowLeft, Settings2, Calendar, RefreshCcw, Bell, User, Mail, GraduationCap, ShieldCheck } from "lucide-react";
 import Link from "next/link";

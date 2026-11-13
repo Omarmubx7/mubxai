@@ -1,6 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { getSuggestedCourses } from "@/lib/groq";
 import { logAIUsage } from "@/lib/ai-logger";
 import { checkDailyAiUsageLimit } from "@/lib/ai-usage-limit";
@@ -14,7 +13,7 @@ type CandidateCourse = {
 };
 
 export async function POST(request: NextRequest) {
-    const session = await getServerSession();
+    const session = await getSession();
     if (!session) {
         return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }

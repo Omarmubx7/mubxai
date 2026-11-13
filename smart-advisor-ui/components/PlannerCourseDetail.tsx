@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
-import { useSession } from "next-auth/react";
+import { useSession } from "@/lib/session-stub";
 import { useRouter } from "next/navigation";
 import { ArrowLeft, Clock, Save, History, PlayCircle, CheckCircle2, BookOpen, Calendar as CalendarIcon, Info } from "lucide-react";
 import Link from "next/link";

@@ -1,7 +1,7 @@
 "use client";
 
 import type { ReactNode } from "react";
-import { SessionProvider } from "next-auth/react";
+import { SessionProvider } from "@/lib/session-stub";
 import { ToastProvider } from "@/components/ui/Toast";
 
 export function Providers({ children }: { readonly children: ReactNode }) {

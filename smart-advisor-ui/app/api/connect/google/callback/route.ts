@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
-import { authOptions } from "@/auth";
+import { getSession } from "@/lib/session-server";
 import { saveIntegrationToken, initDB } from "@/lib/database";
 import { getBaseUrl, requireEnv } from "@/lib/env";
+import { decodeBase64UrlText } from "@/lib/base64url";
 
 interface GoogleTokenResponse {
     access_token?: string;
@@ -66,7 +66,7 @@ async function fetchGoogleProfile(accessToken: string): Promise<GoogleProfile> {
 function decodeReturnTo(encoded?: string): string {
     if (!encoded) return "/planner/settings";
     try {
-        const decoded = Buffer.from(encoded, "base64url").toString();
+        const decoded = decodeBase64UrlText(encoded);
         // Security: only allow relative paths starting with /
         // Block external URLs (//host, scheme://host) and path traversal
         if (
@@ -86,46 +86,52 @@ function decodeReturnTo(encoded?: string): string {
 // GET /api/connect/google/callback?code=...
 // Google redirects here after the user authorizes
 export async function GET(req: NextRequest) {
-    const session = await getServerSession();
+    /** Redirect and always clear the short-lived OAuth cookies. */
+    const go = (url: URL) => {
+        const res = NextResponse.redirect(url);
+        res.cookies.delete("oauth_state");
+        res.cookies.delete("oauth_redirect_uri");
+        return res;
+    };
+
+    const session = await getSession();
 
     if (!session?.user) {
-        return NextResponse.redirect(new URL("/?error=unauthorized", req.url));
+        return go(new URL("/?error=unauthorized", req.url));
     }
 
     const studentId = session.user.db_id?.toString() || session.user.student_id || session.user.email;
     if (!studentId) {
         console.error("[Google OAuth] No user identity found in session:", JSON.stringify(session.user));
-        return NextResponse.redirect(new URL("/?error=unauthorized", req.url));
+        return go(new URL("/?error=unauthorized", req.url));
     }
 
     const code = req.nextUrl.searchParams.get("code");
     const oauthError = req.nextUrl.searchParams.get("error");
     const stateParam = req.nextUrl.searchParams.get("state") || "";
 
+    const returnTo = decodeReturnTo(stateParam.split(".")[1]);
+
     if (oauthError || !code) {
-        const errUrl = new URL("/planner/settings", req.url);
+        const errUrl = new URL(returnTo, req.url);
         errUrl.searchParams.set("error", "google_denied");
-        return NextResponse.redirect(errUrl);
+        return go(errUrl);
     }
 
     // Verify state parameter to prevent CSRF
     const storedState = req.cookies.get("oauth_state")?.value;
-    const [receivedState, returnToEncoded] = stateParam.split(".");
+    const [receivedState] = stateParam.split(".");
 
     if (!storedState || storedState !== receivedState) {
-        return NextResponse.redirect(new URL("/?error=invalid_state", req.url));
+        return go(new URL("/?error=invalid_state", req.url));
     }
-
-    const returnTo = decodeReturnTo(returnToEncoded);
-
-    // Clear state cookie
-    const response = NextResponse.redirect(new URL(returnTo, req.url));
-    response.cookies.delete("oauth_state");
 
     try {
         await initDB();
 
-        const redirectUri = `${getBaseUrl(req)}/api/connect/google/callback`;
+        const redirectUri =
+            req.cookies.get("oauth_redirect_uri")?.value ||
+            `${getBaseUrl(req)}/api/connect/google/callback`;
         const clientId = requireEnv("GOOGLE_CLIENT_ID");
         const clientSecret = requireEnv("GOOGLE_CLIENT_SECRET");
 
@@ -133,7 +139,7 @@ export async function GET(req: NextRequest) {
         if (!tokens) {
             const errUrl = new URL(returnTo, req.url);
             errUrl.searchParams.set("error", "google_token_failed");
-            return NextResponse.redirect(errUrl);
+            return go(errUrl);
         }
 
         const profile = await fetchGoogleProfile(tokens.access_token!);
@@ -155,11 +161,11 @@ export async function GET(req: NextRequest) {
 
         const redirectUrl = new URL(returnTo, req.url);
         redirectUrl.searchParams.set("connected", "google");
-        return NextResponse.redirect(redirectUrl);
+        return go(redirectUrl);
     } catch (e: unknown) {
         console.error("[Google OAuth] Callback failed:", e instanceof Error ? e.message : String(e), e instanceof Error ? e.stack : "");
         const errUrl = new URL(returnTo, req.url);
         errUrl.searchParams.set("error", "oauth_failed");
-        return NextResponse.redirect(errUrl);
+        return go(errUrl);
     }
 }

@@ -1,5 +1,8 @@
 generator client {
   provider      = "prisma-client-js"
+  // The "client" engine uses the WASM query compiler + a driver adapter, which
+  // is the only Prisma setup that runs on Cloudflare Workers (no .node engine).
+  engineType    = "client"
   binaryTargets = ["native", "rhel-openssl-3.0.x"]
   output        = "../node_modules/.prisma/client"
 }
