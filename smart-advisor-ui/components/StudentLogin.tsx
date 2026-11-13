@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { ArrowRight, Lock, User } from "lucide-react";
-import { signIn } from "next-auth/react";
+import { signIn } from "@/lib/session-stub";
 import Image from "next/image";
 
 /**
@@ -188,9 +188,12 @@ export default function StudentLogin() {
 
                     <div className="flex flex-col gap-4">
                         <motion.button
+                            type="button"
                             whileHover={{ scale: 1.01 }}
                             whileTap={{ scale: 0.99 }}
-                            onClick={() => signIn('google', { callbackUrl: getCallbackUrl() })}
+                            onClick={() => {
+                                signIn('google', { callbackUrl: getCallbackUrl() });
+                            }}
                             aria-label="Continue with Google"
                             className="w-full flex items-center justify-center gap-3 py-4 rounded-lg bg-[#edf1f6] border border-[#dde3ec] text-[#222d32] text-sm font-semibold transition-all hover:bg-[#dde3ec] group"
                         >
