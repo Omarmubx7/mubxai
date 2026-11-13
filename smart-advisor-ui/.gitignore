@@ -27,6 +27,10 @@
 # production
 /build
 
+# open-next / cloudflare workers
+/.open-next/
+/.wrangler/
+
 # misc
 .DS_Store
 *.pem
