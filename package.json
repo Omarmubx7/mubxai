@@ -4,7 +4,7 @@
   "description": "Root workspace router for MUBXAI",
   "scripts": {
     "dev": "cd smart-advisor-ui && npm run dev",
-    "build": "cd smart-advisor-ui && npm run build",
+    "build": "cd smart-advisor-ui && npm install && npm run build",
     "start": "cd smart-advisor-ui && npm run start",
     "lint": "cd smart-advisor-ui && npm run lint",
     "install-all": "cd smart-advisor-ui && npm install",
