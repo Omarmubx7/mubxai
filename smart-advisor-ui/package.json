@@ -107,7 +107,8 @@
     "typescript": "^5",
     "typescript-eslint": "^8.65.0",
     "vitest": "^3.1.0",
-    "webpack": "^5.112.2"
+    "webpack": "^5.112.2",
+    "wrangler": "^4.161.0"
   },
   "browserslist": [
     "chrome >= 90",
