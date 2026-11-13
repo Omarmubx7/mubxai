@@ -1,6 +1,5 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
-import { headers } from "next/headers";
 import "./globals.css";
 import { getClientInfo } from "@/lib/client-info";
 import { logVisitor } from "@/lib/database";
@@ -9,6 +8,7 @@ import MobileNav from "@/components/MobileNav";
 import MobileHeader from "@/components/MobileHeader";
 import MaintenanceBanner from "@/components/MaintenanceBanner";
 import ThemeProvider from "@/components/ThemeProvider";
+import { NonceScript } from "@/components/NonceScript";
 import {
   SITE_URL,
   SITE_NAME,
@@ -114,9 +114,6 @@ export default async function RootLayout({
     logVisitor(info).catch((e) => console.error("Logging failed", e));
   }
 
-  const hdrs = await headers();
-  const nonce = hdrs.get("x-nonce") || undefined;
-
   return (
     <html lang="en" className="light overflow-x-hidden" suppressHydrationWarning>
       <head>
@@ -124,31 +121,7 @@ export default async function RootLayout({
         <link rel="alternate" type="text/plain" href="/llms.txt" title="LLM context" />
         <link rel="alternate" type="text/plain" href="/llms-full.txt" title="LLM extended context" />
         <link rel="alternate" type="text/plain" href="/ai.txt" title="AI permissions" />
-        <script
-          nonce={nonce}
-          dangerouslySetInnerHTML={{
-            __html: `(function(){
-              var isStorageLike=function(value){
-                return !!value && typeof value.getItem==="function" && typeof value.setItem==="function" && typeof value.removeItem==="function";
-              };
-              var s=function(e){
-                var msg=(e.message||e.reason?.message||"").toLowerCase();
-                if(msg.includes("storage")||msg.includes("access")||msg.includes("zap")||msg.includes("clock")||msg.includes("extension")||msg.includes("cactus")){
-                  if(e.stopImmediatePropagation)e.stopImmediatePropagation();
-                  if(e.preventDefault)e.preventDefault();
-                  return true;
-                }
-              };
-              window.addEventListener("error",s,true);
-              window.addEventListener("unhandledrejection",s,true);
-
-              var f=function(a){if(!a || typeof a!=="string")return false;var s=a.toLowerCase();return s.includes("zustand")||s.includes("deprecated")||s.includes("extension")||s.includes("storage")||s.includes("access")||s.includes("zap")||s.includes("clock")||s.includes("cactus");};
-              var ow=console.warn;console.warn=function(){if(f(arguments[0]))return;ow.apply(console,arguments)};
-              var oe=console.error;console.error=function(){if(f(arguments[0]))return;oe.apply(console,arguments)};
-              var ol=console.log;console.log=function(){if(f(arguments[0]))return;ol.apply(console,arguments)};
-            })();`
-          }}
-        />
+        <NonceScript />
       </head>
       <body className={`${inter.variable} font-sans min-h-screen flex flex-col`} suppressHydrationWarning>
         <ThemeProvider>
