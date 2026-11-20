@@ -17,13 +17,26 @@ function generateNonce(): string {
     return btoa(binary);
 }
 
+/**
+ * Headers that do not depend on the request. Applied to every response,
+ * including JSON APIs where generating a CSP nonce would be pure overhead.
+ */
+function applyStaticSecurityHeaders(response: NextResponse): NextResponse {
+    response.headers.set("X-Frame-Options", "SAMEORIGIN");
+    response.headers.set("X-Content-Type-Options", "nosniff");
+    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+    response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
+    return response;
+}
+
 export function middleware(request: NextRequest) {
-    // In development, skip CSP so that React hydration & HMR aren't blocked
-    if (process.env.NODE_ENV !== "production") {
-        const response = NextResponse.next();
-        response.headers.set("X-Frame-Options", "SAMEORIGIN");
-        response.headers.set("X-Content-Type-Options", "nosniff");
-        return response;
+    const isApi = request.nextUrl.pathname.startsWith("/api/");
+
+    // In development, skip CSP so that React hydration & HMR aren't blocked.
+    // API routes never render inline scripts, so they do not need a nonce.
+    if (process.env.NODE_ENV !== "production" || isApi) {
+        return applyStaticSecurityHeaders(NextResponse.next());
     }
 
     const nonce = generateNonce();
@@ -56,13 +69,7 @@ export function middleware(request: NextRequest) {
     });
 
     response.headers.set("Content-Security-Policy", cspHeader);
-    response.headers.set("X-Frame-Options", "SAMEORIGIN");
-    response.headers.set("X-Content-Type-Options", "nosniff");
-    response.headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
-    response.headers.set("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
-    response.headers.set("Strict-Transport-Security", "max-age=31536000; includeSubDomains; preload");
-
-    return response;
+    return applyStaticSecurityHeaders(response);
 }
 
 export const config = {

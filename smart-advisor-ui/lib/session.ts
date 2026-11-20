@@ -60,14 +60,24 @@ function base64UrlToBytes(value: string): Uint8Array {
     return bytes;
 }
 
+// Importing an HMAC key is setup work that otherwise runs on every session
+// read. Cache it per isolate (keyed by the secret so tests that swap
+// NEXTAUTH_SECRET still behave correctly) instead of re-importing per request.
+let cachedKey: { secret: string; key: Promise<CryptoKey> } | null = null;
+
 async function importKey(): Promise<CryptoKey> {
-    return crypto.subtle.importKey(
+    const secret = getSecret();
+    if (cachedKey?.secret === secret) return cachedKey.key;
+
+    const key = crypto.subtle.importKey(
         "raw",
-        new TextEncoder().encode(getSecret()),
+        new TextEncoder().encode(secret),
         { name: "HMAC", hash: "SHA-256" },
         false,
         ["sign", "verify"]
     );
+    cachedKey = { secret, key };
+    return key;
 }
 
 function constantTimeEqual(a: Uint8Array, b: Uint8Array): boolean {

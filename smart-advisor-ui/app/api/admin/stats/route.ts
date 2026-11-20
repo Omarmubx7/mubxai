@@ -1,12 +1,41 @@
 import { NextResponse, NextRequest } from 'next/server';
 import { getAllStudents, initDB } from '@/lib/database';
 import { getAIUsageStats } from '@/lib/ai-logger';
-import { promises as fs } from 'node:fs';
-import path from 'node:path';
 import { prisma } from '@/lib/prisma';
 import { requireAdmin } from '@/lib/admin-auth';
+import curriculumData from '@/public/data/curriculum.json';
+import curriculumRulesData from '@/public/data/curriculum_rules.json';
 
 export const dynamic = 'force-dynamic';
+
+/* ─── Short-lived aggregate cache ─────────────────────────────────
+   The admin dashboard polls this endpoint every ~10s. Recomputing
+   twelve independent DB queries per poll is the single most
+   expensive read on this Worker. Cache the assembled payload for
+   30s per isolate and support ETag revalidation so repeat polls
+   return 304 / the cached object with no DB work at all.
+   Admin authorization is always checked BEFORE touching the cache. */
+
+const STATS_CACHE_TTL_MS = 30_000;
+
+type StatsCacheEntry = {
+    body: string;
+    etag: string;
+    expiresAt: number;
+};
+
+let statsCache: StatsCacheEntry | null = null;
+let statsInFlight: Promise<StatsCacheEntry> | null = null;
+
+function hashEtag(input: string): string {
+    // FNV-1a — cheap, deterministic, and unique enough for a 30s cache.
+    let h = 0x811c9dc5;
+    for (let i = 0; i < input.length; i++) {
+        h ^= input.charCodeAt(i);
+        h = Math.imul(h, 0x01000193);
+    }
+    return `"${(h >>> 0).toString(36)}"`;
+}
 
 /* ─── Load course catalog from JSON files (server-side) ────────── */
 
@@ -45,13 +74,10 @@ type AdminLogRow = {
 async function getCourseMap(): Promise<Map<string, CourseEntry>> {
     if (courseCache) return courseCache;
 
-    const dataDir = path.join(process.cwd(), 'public', 'data');
-    const masterFile = path.join(dataDir, 'curriculum.json');
     const map = new Map<string, CourseEntry>();
 
     try {
-        const raw = await fs.readFile(masterFile, 'utf-8');
-        const json = JSON.parse(raw);
+        const json = curriculumData as any;
 
         const extractCourses = (obj: unknown) => {
             if (!obj || typeof obj !== 'object') return;
@@ -89,8 +115,7 @@ async function loadProgressRows(): Promise<ProgressRow[]> {
 }
 
 async function loadCurriculumRules(): Promise<CurriculumRules> {
-    const rulesRaw = await fs.readFile(path.join(process.cwd(), 'public', 'data', 'curriculum_rules.json'), 'utf-8');
-    return JSON.parse(rulesRaw) as CurriculumRules;
+    return curriculumRulesData as unknown as CurriculumRules;
 }
 
 function getMajorTotalCredits(rulesJson: CurriculumRules, majorKey: string) {
@@ -401,54 +426,96 @@ async function loadAiUsage() {
     }
 }
 
+async function buildStatsPayload(): Promise<StatsCacheEntry> {
+    await initDB();
+    const [students, courseMap, progressRows, rulesJson, trafficByDay, deviceStats, recentActivity, heatmap, weekComparison, averages, adminLogs, aiUsage] = await Promise.all([
+        getAllStudents(),
+        getCourseMap(),
+        loadProgressRows(),
+        loadCurriculumRules(),
+        loadTrafficByDay(),
+        loadDeviceBreakdown(),
+        loadRecentActivity(),
+        loadHeatmap(),
+        loadWeekComparison(),
+        loadAcademicAverages(),
+        loadAdminLogs(),
+        loadAiUsage(),
+    ]);
+
+    const academic = buildAcademicStats(students, courseMap, progressRows, rulesJson);
+
+    const body = JSON.stringify({
+        totalStudents: academic.totalStudents,
+        totalVisitors: deviceStats.totalVisitors,
+        totalCompletedCourses: academic.totalCompletedCourses,
+        avgCoursesCompleted: academic.avgCoursesCompleted,
+        avgCreditHours: academic.avgCreditHours,
+        avgWeightedProgress: academic.avgWeightedProgress,
+        avgCgpa: averages.avgCgpa,
+        avgStudyHours: averages.avgStudyHours,
+        thisWeekVisits: weekComparison.thisWeekVisits,
+        lastWeekVisits: weekComparison.lastWeekVisits,
+        majorCounts: academic.majorCounts,
+        progressDistribution: academic.progressDistribution,
+        topCourses: academic.topCourses,
+        trafficByDay,
+        deviceBreakdown: deviceStats.deviceBreakdown,
+        recentActivity,
+        heatmap,
+        students: academic.studentRealCH,
+        studentData: academic.studentRealCH,
+        adminLogs,
+        aiUsage,
+    });
+
+    return { body, etag: hashEtag(body), expiresAt: Date.now() + STATS_CACHE_TTL_MS };
+}
+
+const STATS_HEADERS = {
+    'Content-Type': 'application/json; charset=utf-8',
+    'Cache-Control': 'private, max-age=0, must-revalidate',
+};
+
 export async function GET(_request: NextRequest) {
     const adminCheck = await requireAdmin(_request);
     if (adminCheck) return adminCheck;
 
     try {
-        await initDB();
-        const [students, courseMap, progressRows, rulesJson, trafficByDay, deviceStats, recentActivity, heatmap, weekComparison, averages, adminLogs, aiUsage] = await Promise.all([
-            getAllStudents(),
-            getCourseMap(),
-            loadProgressRows(),
-            loadCurriculumRules(),
-            loadTrafficByDay(),
-            loadDeviceBreakdown(),
-            loadRecentActivity(),
-            loadHeatmap(),
-            loadWeekComparison(),
-            loadAcademicAverages(),
-            loadAdminLogs(),
-            loadAiUsage(),
-        ]);
+        const now = Date.now();
+        const cached = statsCache;
 
-        const academic = buildAcademicStats(students, courseMap, progressRows, rulesJson);
+        if (cached && now < cached.expiresAt) {
+            const inm = _request.headers.get('if-none-match');
+            if (inm && inm.split(',').some(tag => tag.trim() === cached.etag)) {
+                return new Response(null, {
+                    status: 304,
+                    headers: { ETag: cached.etag, 'Cache-Control': STATS_HEADERS['Cache-Control'] },
+                });
+            }
+            return new Response(cached.body, { status: 200, headers: { ...STATS_HEADERS, ETag: cached.etag } });
+        }
 
-        return NextResponse.json({
-            totalStudents: academic.totalStudents,
-            totalVisitors: deviceStats.totalVisitors,
-            totalCompletedCourses: academic.totalCompletedCourses,
-            avgCoursesCompleted: academic.avgCoursesCompleted,
-            avgCreditHours: academic.avgCreditHours,
-            avgWeightedProgress: academic.avgWeightedProgress,
-            avgCgpa: averages.avgCgpa,
-            avgStudyHours: averages.avgStudyHours,
-            thisWeekVisits: weekComparison.thisWeekVisits,
-            lastWeekVisits: weekComparison.lastWeekVisits,
-            majorCounts: academic.majorCounts,
-            progressDistribution: academic.progressDistribution,
-            topCourses: academic.topCourses,
-            trafficByDay,
-            deviceBreakdown: deviceStats.deviceBreakdown,
-            recentActivity,
-            heatmap,
-            students: academic.studentRealCH,
-            studentData: academic.studentRealCH,
-            adminLogs,
-            aiUsage,
-        }, { headers: { 'Cache-Control': 'no-store, max-age=0' } });
+        // Collapse concurrent polls from multiple admin tabs/first loads into
+        // one aggregate rebuild.
+        if (!statsInFlight) {
+            statsInFlight = buildStatsPayload()
+                .then(entry => {
+                    statsCache = entry;
+                    return entry;
+                })
+                .finally(() => {
+                    statsInFlight = null;
+                });
+        }
+
+        const entry = await statsInFlight;
+        return new Response(entry.body, { status: 200, headers: { ...STATS_HEADERS, ETag: entry.etag } });
     } catch (e) {
         console.error('Stats API Error:', e);
-        return NextResponse.json({ error: 'Failed to fetch stats' }, { status: 500, headers: { 'Cache-Control': 'no-store, max-age=0' } });
+        return NextResponse.json(
+            { error: 'Failed to fetch stats' },
+            { status: 500, headers: { 'Cache-Control': 'no-store, max-age=0' } }
+        );
     }
 }

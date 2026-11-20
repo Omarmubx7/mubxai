@@ -2,10 +2,10 @@ import { NextRequest, NextResponse } from 'next/server';
 import { getSession } from "@/lib/session-server";
 import { prisma } from "@/lib/prisma";
 import { resolveAuthenticatedUser } from "@/lib/resolve-user";
-import { evaluateAchievements } from "@/lib/gamification";
-import { calculateSemesterGpa, getClassification, buildCourseCreditMap, getCompletedEntryCode } from "@/lib/grading";
-import fs from 'node:fs/promises';
-import path from 'node:path';
+import { buildCourseCreditMap, getCompletedEntryCode } from "@/lib/grading";
+import { computeAcademicMetrics, getJordanDayKey } from "@/lib/planner-academics";
+import curriculumData from '@/public/data/curriculum.json';
+import curriculumRulesData from '@/public/data/curriculum_rules.json';
 
 // Typed shape for degree_types from curriculum_rules.json
 interface DegreeTypeEntry { major_keys: string[]; total_credits: number }
@@ -18,8 +18,7 @@ let rulesCache: CurriculumRulesRecord | null = null;
 async function getCurriculum() {
     if (!curriculumCache) {
         try {
-            const raw = await fs.readFile(path.join(process.cwd(), 'public', 'data', 'curriculum.json'), 'utf-8');
-            curriculumCache = JSON.parse(raw);
+            curriculumCache = curriculumData as unknown as Record<string, unknown>;
         } catch (e) {
             console.error("Failed to load curriculum cache", e);
             return null;
@@ -31,8 +30,7 @@ async function getCurriculum() {
 async function getCurriculumRules() {
     if (!rulesCache) {
         try {
-            const raw = await fs.readFile(path.join(process.cwd(), 'public', 'data', 'curriculum_rules.json'), 'utf-8');
-            rulesCache = JSON.parse(raw);
+            rulesCache = curriculumRulesData as unknown as CurriculumRulesRecord;
         } catch (e) {
             console.error("Failed to load rules cache", e);
             return null;
@@ -50,76 +48,11 @@ interface UpcomingEventLike {
     end_datetime?: Date;
 }
 
-function getJordanDayKey(date: Date): string {
-    return new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Amman' }).format(date);
-}
-
-type UserWithGamification = {
-    id: number;
-    gamification_profile: import('@prisma/client').GamificationProfile | null;
-};
-
-async function handleDailyGamificationXP(user: UserWithGamification, today: Date) {
-    let gamification = user.gamification_profile;
-    if (gamification == null) {
-        gamification = await prisma.gamificationProfile.create({
-            data: { user_id: user.id, xp: 10, level: 1, last_activity_date: today }
-        });
-    } else {
-        const lastDate = gamification.last_activity_date ? new Date(gamification.last_activity_date) : null;
-        const lastDateStr = lastDate ? getJordanDayKey(lastDate) : "";
-        const todayStr = getJordanDayKey(today);
-
-        if (lastDateStr !== todayStr) {
-            gamification = await prisma.gamificationProfile.update({
-                where: { user_id: user.id },
-                data: { xp: { increment: 10 }, last_activity_date: today }
-            });
-            await evaluateAchievements(user.id);
-        }
-    }
-    return gamification;
-}
-
 function formatJordanTimezoneOffset(offsetMatch: RegExpExecArray | null): string {
     if (!offsetMatch) return '+03:00';
     const matched = offsetMatch[1];
     return matched.length <= 3 ? matched + ':00' : matched;
 }
-
-async function handleGpaImprovement(userId: number, cgpa: number, classification: string) {
-    try {
-        const lastHistory = await prisma.gPAHistory.findFirst({
-            where: { user_id: userId },
-            orderBy: { created_at: 'desc' }
-        });
-
-        if (cgpa > 0 && (lastHistory === null || cgpa > lastHistory.cumulative_gpa)) {
-            const diff = lastHistory ? cgpa - lastHistory.cumulative_gpa : cgpa;
-            if (diff >= 0.1) {
-                const xpAward = Math.floor(diff / 0.1) * 50;
-                await prisma.gamificationProfile.update({
-                    where: { user_id: userId },
-                    data: { xp: { increment: 10 + xpAward } }
-                });
-
-                await prisma.gPAHistory.create({
-                    data: { user_id: userId, cumulative_gpa: cgpa, classification }
-                });
-                await evaluateAchievements(userId);
-            }
-        }
-    } catch (e) {
-        console.error("GPA Improvement handler error:", e);
-    }
-}
-
-function getCompletedEntryGrade(entry: unknown): string {
-    if (typeof entry !== 'object' || entry === null) return 'M';
-    const grade = (entry as { grade?: unknown }).grade;
-    return typeof grade === 'string' ? grade : 'M';
-}
-
 
 export async function GET(_req: NextRequest) {
     const session = await getSession();
@@ -239,12 +172,8 @@ export async function GET(_req: NextRequest) {
             console.warn(`[PlannerSummary] WARNING: No semesters found for userId=${user.id}`);
         }
 
-        let gamification = user.gamification_profile;
-        try {
-            gamification = await handleDailyGamificationXP(user, todayStart);
-        } catch (gamErr) {
-            console.error("[PlannerSummary] Gamification XP update failed (non-fatal):", gamErr);
-        }
+        // Read-only: daily XP / GPA rewards are applied by POST /api/planner/rewards.
+        const gamification = user.gamification_profile;
 
         // 4. Active Semester
         const currentSemester = (semesters && semesters.length > 0) 
@@ -254,76 +183,15 @@ export async function GET(_req: NextRequest) {
               }) ?? semesters[0])
             : null;
 
-        // 5. GPA
-        const allCompletedCourses = semesters.flatMap(s => 
-            s.courses
-                .filter(c => c.grade_letter && ['D', 'M', 'P', 'U'].includes(c.grade_letter))
-                .map(c => ({
-                    grade: c.grade_letter as string,
-                    credits: c.credits,
-                    code: c.code
-                }))
-        );
-
-        let totalQualityPoints = 0;
-        let gpaCredits = 0;
-        let completedCredits = 0;
-        for (const course of allCompletedCourses) {
-            const points = calculateSemesterGpa([course]) * course.credits;
-            totalQualityPoints += points;
-            gpaCredits += course.credits;
-            completedCredits += course.credits;
-        }
-
-        // Add from tracker (progress.completed)
-        if (progress?.completed && curriculum) {
-            let completedList: (string | { code: string; grade?: string })[] = [];
-            try {
-                const raw = progress.completed;
-                completedList = typeof raw === 'string'
-                    ? (JSON.parse(raw) as (string | { code: string; grade?: string })[])
-                    : (raw as (string | { code: string; grade?: string })[]);
-            } catch { /* ok */ }
-
-            const creditMap = buildCourseCreditMap(curriculum);
-            
-            // Create a set of codes already graded in planner to avoid double counting
-            const plannerGradedCodes = new Set(allCompletedCourses.map(c => c.code));
-
-            for (const entry of completedList || []) {
-                const code = getCompletedEntryCode(entry);
-                if (!code || plannerGradedCodes.has(code)) continue;
-
-                const credits = creditMap.get(code) ?? 3;
-                const grade = getCompletedEntryGrade(entry);
-                
-                // Exclude 'X' from completed CH
-                if (grade !== 'X') {
-                    completedCredits += credits;
-                }
-                    
-                if (['D', 'M', 'P', 'U'].includes(grade)) {
-                    const points = calculateSemesterGpa([{ grade, credits }]) * credits;
-                    totalQualityPoints += points;
-                    gpaCredits += credits;
-                }
-                
-                // Track this so it isn't double counted
-                plannerGradedCodes.add(code);
-            }
-        }
-
-        if (profile?.previous_gpa && profile?.previous_credits) {
-            totalQualityPoints += (Number(profile.previous_gpa) * Number(profile.previous_credits));
-            gpaCredits += Number(profile.previous_credits);
-            completedCredits += Number(profile.previous_credits);
-        }
-
-        const cgpa = gpaCredits > 0 ? Math.round((totalQualityPoints / gpaCredits) * 100) / 100 : 0;
-        const classificationObj = getClassification(cgpa);
-        const classification = classificationObj.label;
-
-        handleGpaImprovement(user.id, cgpa, classification).catch(e => console.error("GPA Improvement handler error:", e));
+        // 5. GPA — pure computation shared with the rewards endpoint.
+        // No DB writes here; daily XP / GPA-history writes moved to
+        // POST /api/planner/rewards (called once per Jordan day by the client).
+        const { cgpa, classification, completedCredits } = computeAcademicMetrics({
+            semesters,
+            progressCompleted: progress?.completed,
+            curriculum,
+            profile,
+        });
 
         // 6. Exams
         const nextWeek = new Date(todayStart);

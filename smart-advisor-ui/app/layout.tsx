@@ -1,9 +1,8 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
-import { getClientInfo } from "@/lib/client-info";
-import { logVisitor } from "@/lib/database";
 import { Providers } from "@/components/Providers";
+import VisitorBeacon from "@/components/VisitorBeacon";
 import MobileNav from "@/components/MobileNav";
 import MobileHeader from "@/components/MobileHeader";
 import MaintenanceBanner from "@/components/MaintenanceBanner";
@@ -102,17 +101,18 @@ export const metadata: Metadata = {
   },
 };
 
-export default async function RootLayout({
+// Static markup: build it once at module load instead of stringifying the
+// same graph on every render.
+const JSON_LD = JSON.stringify({
+  "@context": "https://schema.org",
+  "@graph": [organizationSchema, websiteSchema, softwareApplicationSchema],
+});
+
+export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
-  const info = await getClientInfo().catch(() => null);
-  if (info) {
-    // Fire and forget - don't await the DB insert to avoid blocking
-    logVisitor(info).catch((e) => console.error("Logging failed", e));
-  }
-
   return (
     <html lang="en" className="light overflow-x-hidden" suppressHydrationWarning>
       <head>
@@ -127,17 +127,9 @@ export default async function RootLayout({
             {/* JSON-LD: one graph for the MUBX organization, the MUBXAI product and the site */}
             <script
               type="application/ld+json"
-              dangerouslySetInnerHTML={{
-                __html: JSON.stringify({
-                  "@context": "https://schema.org",
-                  "@graph": [
-                    organizationSchema,
-                    websiteSchema,
-                    softwareApplicationSchema,
-                  ],
-                }),
-              }}
+              dangerouslySetInnerHTML={{ __html: JSON_LD }}
             />
+            <VisitorBeacon />
             <MaintenanceBanner />
             <MobileHeader />
             <main className="flex-1 flex flex-col">

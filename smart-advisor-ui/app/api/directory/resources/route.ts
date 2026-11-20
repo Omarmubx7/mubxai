@@ -1,11 +1,10 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session-server";
-import path from "node:path";
-import fs from "node:fs/promises";
 import { prisma } from "@/lib/prisma";
 import { checkRateLimit } from "@/lib/rate-limit";
 import { resolveAuthenticatedUser } from "@/lib/resolve-user";
 import { getSiteSettings } from "@/lib/settings-server";
+import curriculum from "@/public/data/curriculum.json";
 
 const MAX_DESCRIPTION_LENGTH = 1000;
 
@@ -28,11 +27,7 @@ const ALLOWED_TYPES = ["pdf", "video", "link", "image", "folder", "other"];
 
 async function getCourseCodesForMajor(majorKey: string): Promise<string[] | null> {
     try {
-        const content = await fs.readFile(
-            path.join(process.cwd(), "public/data/curriculum.json"),
-            "utf8"
-        );
-        const data = JSON.parse(content);
+        const data = curriculum as any;
         const majorData = data.majors[majorKey];
         if (!majorData) return null;
 

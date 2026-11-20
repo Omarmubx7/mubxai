@@ -13,6 +13,27 @@ type SyncResult = {
     status?: "synced" | "skipped" | "failed"
 };
 
+type ExistingEvent = {
+    id: number;
+    course_id: number | null;
+    type: string;
+    google_event_id: string | null;
+    title: string;
+    start_datetime: Date;
+    end_datetime: Date;
+};
+
+/** A fully-described event. Building tasks is pure; only syncTask does I/O. */
+type SyncTask = {
+    course: SyncCourse;
+    type: string;
+    title: string;
+    start: Date;
+    end: Date;
+    eventData: Record<string, unknown>;
+    existing?: ExistingEvent;
+};
+
 interface GoogleTokenMetadata {
     htu_calendar_id?: string;
     exam_reminders_days?: number;
@@ -152,7 +173,14 @@ function formatAmmanTime(date: Date) {
     return `${get("year")}-${get("month")}-${get("day")}T${get("hour")}:${get("minute")}:${get("second")}${offset}`;
 }
 
-async function syncCourseExams(calendarId: string, course: SyncCourse, token: GoogleToken, user: SyncUser, results: SyncResult[]) {
+/** Pure: turns exam dates into sync tasks using the pre-loaded event map. */
+function buildExamTasks(
+    course: SyncCourse,
+    token: GoogleToken,
+    existingByKey: Map<string, ExistingEvent>,
+    tasks: SyncTask[],
+    results: SyncResult[]
+) {
     const examTypes = [
         { field: "midterm_date" as const, type: "Midterm" },
         { field: "final_date" as const, type: "Final" }
@@ -165,52 +193,32 @@ async function syncCourseExams(calendarId: string, course: SyncCourse, token: Go
             continue;
         }
 
-        try {
-            const dateObj = new Date(dateVal as string | number | Date);
-            if (Number.isNaN(dateObj.getTime())) {
-                results.push({ course: course.code, type, success: false, status: "failed", error: "Invalid date format" });
-                continue;
-            }
+        const dateObj = new Date(dateVal as string | number | Date);
+        if (Number.isNaN(dateObj.getTime())) {
+            results.push({ course: course.code, type, success: false, status: "failed", error: "Invalid date format" });
+            continue;
+        }
 
-            const existingEvent = await prisma.calendarEvent.findFirst({
-                where: { course_id: course.id, type, user_id: user.id }
-            });
+        const end = new Date(dateObj.getTime() + 2 * 60 * 60 * 1000);
+        const title = `${course.name} — ${type} Exam`;
 
-            const eventData = {
-                summary: `${course.name} — ${type} Exam`,
+        tasks.push({
+            course,
+            type,
+            title,
+            start: dateObj,
+            end,
+            existing: existingByKey.get(`${course.id}||${type}`),
+            eventData: {
+                summary: title,
                 description: `${type} examination for ${course.name}. Automatically synced from MUBXAI.`,
                 location: course.location || undefined,
                 start: { dateTime: formatAmmanTime(dateObj), timeZone: "Asia/Amman" },
-                end: { dateTime: formatAmmanTime(new Date(dateObj.getTime() + 2 * 60 * 60 * 1000)), timeZone: "Asia/Amman" },
+                end: { dateTime: formatAmmanTime(end), timeZone: "Asia/Amman" },
                 reminders: { useDefault: false, overrides: getExamReminders(token) },
-                colorId: type === "Midterm" ? "5" : "11"
-            };
-
-            const method = existingEvent?.google_event_id ? "PATCH" : "POST";
-            const baseEventsUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
-            const eventPath = existingEvent?.google_event_id ? `/${existingEvent.google_event_id}` : "";
-            const url = `${baseEventsUrl}${eventPath}`;
-
-            const googleRes = await upsertGoogleEvent(calendarId, url, method, token, eventData);
-            if (!googleRes.ok) {
-                const errText = await googleRes.text();
-                results.push({ course: course.code, type, success: false, status: "failed", error: `Google API Error: ${errText}` });
-                continue;
-            }
-
-            const data = await googleRes.json() as { id: string };
-            const gEventId = data.id;
-
-            await prisma.calendarEvent.upsert({
-                where: { id: existingEvent?.id || -1 },
-                update: { google_event_id: gEventId, start_datetime: dateObj, end_datetime: new Date(dateObj.getTime() + 2 * 60 * 60 * 1000), updated_at: new Date() },
-                create: { user_id: user.id, course_id: course.id, type, google_event_id: gEventId, title: `${course.name} — ${type} Exam`, start_datetime: dateObj, end_datetime: new Date(dateObj.getTime() + 2 * 60 * 60 * 1000) }
-            });
-
-            results.push({ course: course.code, type, success: true, status: "synced", eventId: gEventId });
-        } catch (err: unknown) {
-            results.push({ course: course.code, type, success: false, status: "failed", error: String(err) });
-        }
+                colorId: type === "Midterm" ? "5" : "11",
+            },
+        });
     }
 }
 
@@ -272,7 +280,13 @@ function calculateScheduleDates(schedule: { days: string[]; startH: number; star
     return { start, end, untilStr };
 }
 
-async function syncCourseSchedule(calendarId: string, course: SyncCourse, token: GoogleToken, user: SyncUser, results: SyncResult[]) {
+/** Pure: turns a class schedule into a sync task. */
+function buildScheduleTask(
+    course: SyncCourse,
+    existingByKey: Map<string, ExistingEvent>,
+    tasks: SyncTask[],
+    results: SyncResult[]
+) {
     const scheduleInfo = parseSchedule(course.class_schedule);
     if (!scheduleInfo) {
         results.push({ course: course.code, type: "Schedule", success: false, status: "skipped", error: "No valid class time set" });
@@ -280,50 +294,100 @@ async function syncCourseSchedule(calendarId: string, course: SyncCourse, token:
     }
 
     try {
-        const semesterObj = course.semester_object;
-        const { start, end, untilStr } = calculateScheduleDates(scheduleInfo, semesterObj);
-
+        const { start, end, untilStr } = calculateScheduleDates(scheduleInfo, course.semester_object);
         const dayMap: Record<string, string> = { "Sun": "SU", "Mon": "MO", "Tue": "TU", "Wed": "WE", "Thu": "TH", "Fri": "FR", "Sat": "SA" };
         const rruleDays = scheduleInfo.days.map(d => dayMap[d]).filter(Boolean).join(",");
+        const title = `${course.name} (Class)`;
 
-        const eventData = {
-            summary: `${course.name} (Class)`,
-            location: course.location || undefined,
-            description: `Weekly class schedule for ${course.name}. Automatically synced from MUBXAI.`,
-            start: { dateTime: formatAmmanTime(start), timeZone: "Asia/Amman" },
-            end: { dateTime: formatAmmanTime(end), timeZone: "Asia/Amman" },
-            recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${rruleDays};UNTIL=${untilStr}`],
-            reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 30 }] },
-            colorId: "1"
-        };
-
-        const existingEvent = await prisma.calendarEvent.findFirst({
-            where: { course_id: course.id, type: "Schedule", user_id: user.id }
+        tasks.push({
+            course,
+            type: "Schedule",
+            title,
+            start,
+            end,
+            existing: existingByKey.get(`${course.id}||Schedule`),
+            eventData: {
+                summary: title,
+                location: course.location || undefined,
+                description: `Weekly class schedule for ${course.name}. Automatically synced from MUBXAI.`,
+                start: { dateTime: formatAmmanTime(start), timeZone: "Asia/Amman" },
+                end: { dateTime: formatAmmanTime(end), timeZone: "Asia/Amman" },
+                recurrence: [`RRULE:FREQ=WEEKLY;BYDAY=${rruleDays};UNTIL=${untilStr}`],
+                reminders: { useDefault: false, overrides: [{ method: "popup", minutes: 30 }] },
+                colorId: "1",
+            },
         });
+    } catch (err: unknown) {
+        results.push({ course: course.code, type: "Schedule", success: false, status: "failed", error: String(err) });
+    }
+}
 
-        const method = existingEvent?.google_event_id ? "PATCH" : "POST";
+/**
+ * An event is unchanged when its title and computed start/end still match.
+ * Note: reminder-preference changes alone do not trigger a re-sync; those take
+ * effect the next time the exam date or title changes.
+ */
+function isUnchanged(task: SyncTask): boolean {
+    const ex = task.existing;
+    if (!ex?.google_event_id) return false;
+    return ex.title === task.title
+        && new Date(ex.start_datetime).getTime() === task.start.getTime()
+        && new Date(ex.end_datetime).getTime() === task.end.getTime();
+}
+
+async function syncTask(calendarId: string, task: SyncTask, token: GoogleToken, user: SyncUser, results: SyncResult[]) {
+    try {
+        const existing = task.existing;
+        const method = existing?.google_event_id ? "PATCH" : "POST";
         const baseEventsUrl = "https://www.googleapis.com/calendar/v3/calendars/primary/events";
-        const eventPath = existingEvent?.google_event_id ? `/${existingEvent.google_event_id}` : "";
+        const eventPath = existing?.google_event_id ? `/${existing.google_event_id}` : "";
         const url = `${baseEventsUrl}${eventPath}`;
 
-        const googleRes = await upsertGoogleEvent(calendarId, url, method, token, eventData);
+        const googleRes = await upsertGoogleEvent(calendarId, url, method, token, task.eventData);
         if (!googleRes.ok) {
             const errText = await googleRes.text();
-            results.push({ course: course.code, type: "Schedule", success: false, status: "failed", error: `Google API Error: ${errText}` });
+            results.push({ course: task.course.code, type: task.type, success: false, status: "failed", error: `Google API Error: ${errText}` });
             return;
         }
 
         const gEventId = (await googleRes.json() as { id: string }).id;
         await prisma.calendarEvent.upsert({
-            where: { id: existingEvent?.id || -1 },
-            update: { google_event_id: gEventId, start_datetime: start, end_datetime: end, updated_at: new Date() },
-            create: { user_id: user.id, course_id: course.id, type: "Schedule", google_event_id: gEventId, title: `${course.name} (Class)`, start_datetime: start, end_datetime: end }
+            where: { id: existing?.id || -1 },
+            update: {
+                google_event_id: gEventId,
+                title: task.title,
+                start_datetime: task.start,
+                end_datetime: task.end,
+                updated_at: new Date(),
+            },
+            create: {
+                user_id: user.id,
+                course_id: task.course.id,
+                type: task.type,
+                google_event_id: gEventId,
+                title: task.title,
+                start_datetime: task.start,
+                end_datetime: task.end,
+            },
         });
 
-        results.push({ course: course.code, type: "Schedule", success: true, status: "synced", eventId: gEventId });
+        results.push({ course: task.course.code, type: task.type, success: true, status: "synced", eventId: gEventId });
     } catch (err: unknown) {
-        results.push({ course: course.code, type: "Schedule", success: false, status: "failed", error: String(err) });
+        results.push({ course: task.course.code, type: task.type, success: false, status: "failed", error: String(err) });
     }
+}
+
+/** Bounded-concurrency runner: each worker catches its own errors. */
+async function runWithConcurrency<T>(items: T[], limit: number, worker: (item: T) => Promise<void>): Promise<void> {
+    if (items.length === 0) return;
+    let cursor = 0;
+    const runners = Array.from({ length: Math.min(limit, items.length) }, async () => {
+        while (cursor < items.length) {
+            const item = items[cursor++];
+            await worker(item);
+        }
+    });
+    await Promise.allSettled(runners);
 }
 
 function buildSyncStatusMessage(
@@ -382,18 +446,57 @@ export async function POST() {
 
         if (!user) return NextResponse.json({ error: 'User not found' }, { status: 404 });
 
-        const activeSemesters = await prisma.semester.findMany({
-            where: { user_id: user.id },
-            include: { courses: true }
-        });
+        // One DB query for semesters + one for all existing calendar events,
+        // instead of a findFirst per course/event.
+        const [activeSemesters, existingRows] = await Promise.all([
+            prisma.semester.findMany({
+                where: { user_id: user.id },
+                include: { courses: true }
+            }),
+            prisma.calendarEvent.findMany({
+                where: { user_id: user.id },
+                select: {
+                    id: true,
+                    course_id: true,
+                    type: true,
+                    google_event_id: true,
+                    title: true,
+                    start_datetime: true,
+                    end_datetime: true,
+                },
+            }),
+        ]);
+
+        const existingByKey = new Map<string, ExistingEvent>();
+        for (const row of existingRows) {
+            if (row.course_id == null) continue;
+            existingByKey.set(`${row.course_id}||${row.type}`, row);
+        }
 
         const results: SyncResult[] = [];
+        const tasks: SyncTask[] = [];
         const upcomingClasses = activeSemesters.flatMap(sem => sem.courses.map(c => ({ ...c, semester_object: sem })));
 
+        // Describe every event first (pure) — no Google or DB calls yet.
         for (const course of upcomingClasses) {
-            await syncCourseExams(htuCalendarId, course as SyncCourse, token, user, results);
-            await syncCourseSchedule(htuCalendarId, course as SyncCourse, token, user, results);
+            buildExamTasks(course as SyncCourse, token, existingByKey, tasks, results);
+            buildScheduleTask(course as SyncCourse, existingByKey, tasks, results);
         }
+
+        // Skip unchanged events — the common case on repeat syncs. This removes
+        // almost all Google API subrequests and calendar_events writes.
+        const changed: SyncTask[] = [];
+        for (const task of tasks) {
+            if (isUnchanged(task)) {
+                results.push({ course: task.course.code, type: task.type, success: true, status: "skipped", error: "Unchanged" });
+            } else {
+                changed.push(task);
+            }
+        }
+
+        // Bounded concurrency keeps subrequest latency low without hammering
+        // the Google Calendar API or the DB connection pool.
+        await runWithConcurrency(changed, 4, task => syncTask(htuCalendarId, task, token, user, results));
 
         const successCount = results.filter(r => r.success).length;
         const skipCount = results.filter(r => r.status === "skipped").length;

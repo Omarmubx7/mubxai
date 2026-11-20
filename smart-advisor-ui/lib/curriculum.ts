@@ -1,7 +1,6 @@
-import path from "node:path";
-import fs from "node:fs/promises";
 import type { Course } from "@/types";
 import { MAJOR_LIST, type MajorKey } from "./majors";
+import curriculumData from "@/public/data/curriculum.json";
 
 export interface MajorCurriculum {
   key: MajorKey;
@@ -26,9 +25,7 @@ let cached: CurriculumFile | null = null;
 /** Read and cache the curriculum JSON. Server components only. */
 export async function loadCurriculum(): Promise<CurriculumFile> {
   if (cached) return cached;
-  const filePath = path.join(process.cwd(), "public", "data", "curriculum.json");
-  const raw = await fs.readFile(filePath, "utf8");
-  cached = JSON.parse(raw) as CurriculumFile;
+  cached = curriculumData as unknown as CurriculumFile;
   return cached;
 }
 

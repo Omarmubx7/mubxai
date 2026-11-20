@@ -1,7 +1,6 @@
 import type { Metadata } from "next";
-import path from "node:path";
-import fs from "node:fs/promises";
 import DirectoryClient from "@/components/resources/DirectoryClient";
+import curriculum from "@/public/data/curriculum.json";
 
 export const metadata: Metadata = {
     title: "HTU Student Resources & Course Materials",
@@ -54,9 +53,7 @@ async function getMajorGroups(): Promise<{
     courseToMajorLabels: Record<string, string[]>;
 }> {
     try {
-        const dataDir = path.join(process.cwd(), "public/data");
-        const content = await fs.readFile(path.join(dataDir, "curriculum.json"), "utf8");
-        const data = JSON.parse(content);
+        const data = curriculum as any;
 
         const processList = (list: Array<{ code?: string; name?: string; ch?: number }>, map: Map<string, Course>) => {
             if (!list) return;

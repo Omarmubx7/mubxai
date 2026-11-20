@@ -105,10 +105,19 @@ export function getClassification(gpa: number) {
     return CUMULATIVE_CLASSIFICATIONS.at(-1)!;
 }
 
+// The curriculum object is imported once per isolate; avoid rebuilding the
+// same ~hundreds-of-entries map on every summary/grading request.
+const creditMapCache = new WeakMap<object, Map<string, number>>();
+
 /**
  * Builds a map of course codes to their credit hours (CH) from the curriculum JSON.
  */
 export function buildCourseCreditMap(curriculum: unknown): Map<string, number> {
+    if (curriculum && typeof curriculum === "object") {
+        const cached = creditMapCache.get(curriculum);
+        if (cached) return cached;
+    }
+
     const map = new Map<string, number>();
     const addCourseList = (courses: unknown) => {
         if (!Array.isArray(courses)) return;
@@ -141,6 +150,9 @@ export function buildCourseCreditMap(curriculum: unknown): Map<string, number> {
         }
     }
 
+    if (curriculum && typeof curriculum === "object") {
+        creditMapCache.set(curriculum, map);
+    }
     return map;
 }
 

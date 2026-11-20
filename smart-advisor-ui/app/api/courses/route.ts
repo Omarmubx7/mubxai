@@ -1,17 +1,13 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/session-server";
-import path from "node:path";
-import fs from "node:fs/promises";
+import curriculum from "@/public/data/curriculum.json";
 
 export async function GET() {
     const session = await getSession();
     if (!session?.user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const dataDir = path.join(process.cwd(), "public/data");
-
     try {
-        const content = await fs.readFile(path.join(dataDir, "curriculum.json"), "utf8");
-        const data = JSON.parse(content);
+        const data = curriculum as any;
 
         const courseMap: Map<string, { name: string; code: string; ch: number }> = new Map();
 

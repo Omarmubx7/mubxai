@@ -15,6 +15,22 @@ import BrandMark from "@/components/BrandMark";
 import LogSessionModal from "./modals/LogSessionModal";
 import AddCourseModal from "./modals/AddCourseModal";
 
+/**
+ * Daily XP / GPA rewards are now applied out-of-band so the summary GET stays
+ * read-only. This runs at most once per Jordan day, fire-and-forget.
+ */
+async function maybeApplyDailyRewards() {
+    try {
+        const dayKey = new Intl.DateTimeFormat('en-CA', { timeZone: 'Asia/Amman' }).format(new Date());
+        const storageKey = `mubxai:rewards:${dayKey}`;
+        if (safeStorage.get(storageKey)) return;
+        const res = await fetch('/api/planner/rewards', { method: 'POST' });
+        if (res.ok) safeStorage.set(storageKey, dayKey);
+    } catch {
+        // Non-fatal: rewards simply apply on the next page load.
+    }
+}
+
 interface NotificationEvent {
     id: number;
     title: string;
@@ -289,7 +305,12 @@ function PlannerHomeClient() {
         if (status === "unauthenticated") {
             router.push("/");
         } else if (status === "authenticated") {
-            fetchSummary();
+            // Apply daily rewards first so the summary returned below already
+            // reflects the new XP (no extra request on subsequent loads).
+            void (async () => {
+                await maybeApplyDailyRewards();
+                fetchSummary();
+            })();
         }
     }, [status, router, fetchSummary]);
 
